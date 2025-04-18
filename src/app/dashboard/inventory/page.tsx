@@ -84,7 +84,7 @@ export default async function InventoryDashboard() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {buildingsData.map((building) => (
                         <div key={building.id} className="border rounded-lg shadow-sm overflow-hidden">
-                            <div className="bg-slate-100 px-4 py-4 flex justify-between items-center">
+                            <div className="bg-primary bg-opacity-50 px-4 py-4 flex justify-between items-center">
                                 <h2 className="text-xl font-semibold">{building.name}</h2>
                                 <Link href={`/dashboard/inventory/buildings/${building.id}`}>
                                     <Button variant="ghost" size="sm">View Details</Button>

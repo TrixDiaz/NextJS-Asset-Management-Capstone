@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import { prisma } from '@/lib/prisma';
-import { UserTable } from '@/components/users/user-table';
+import { DataTable } from '@/components/users/data-table';
 import { Button } from '@/components/ui/button';
 import { UserPlus } from 'lucide-react';
 import Link from 'next/link';
@@ -40,7 +40,7 @@ export default async function UsersPage() {
         const tableData = formatUserData(users);
 
         return (
-            <div className="p-6 space-y-6">
+            <div className="p-6 space-y-6 w-full">
                 <div className="flex justify-between items-center">
                     <h1 className="text-3xl font-bold">User Management</h1>
                     <Link href="/dashboard/users/new">
@@ -51,9 +51,9 @@ export default async function UsersPage() {
                     </Link>
                 </div>
 
-                <div className="border rounded-lg">
+                <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
                     <Suspense fallback={<div className="p-8 text-center">Loading users...</div>}>
-                        <UserTable data={tableData} />
+                        <DataTable data={tableData} />
                     </Suspense>
                 </div>
             </div>
