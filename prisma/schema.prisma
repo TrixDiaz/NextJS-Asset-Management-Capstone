@@ -1,0 +1,31 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               String    @id @default(cuid())
+  clerkId          String    @unique
+  firstName        String?
+  lastName         String?
+  username         String?   @unique
+  email            String?   @unique
+  profileImageUrl  String?
+  imageUrl         String?
+  birthday         String?
+  gender           String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  lastSignInAt     DateTime?
+  role             String    @default("member")
+  passwordEnabled  Boolean   @default(true)
+  twoFactorEnabled Boolean   @default(false)
+  externalId       String?
+  publicMetadata   Json?     @default("{}")
+  privateMetadata  Json?     @default("{}")
+  unsafeMetadata   Json?     @default("{}")
+}

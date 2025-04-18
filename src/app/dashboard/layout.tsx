@@ -25,6 +25,7 @@ export default async function DashboardLayout({
         <SidebarInset>
           <Header />
           {/* page main content */}
+
           {children}
           {/* page main content ends */}
         </SidebarInset>
