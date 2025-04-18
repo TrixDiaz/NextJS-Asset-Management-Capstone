@@ -1,88 +1,68 @@
 import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Plus, Monitor, HardDrive, Cpu } from 'lucide-react';
+import { ArrowLeft, Package, Calendar, User, Edit } from 'lucide-react';
 import { notFound } from 'next/navigation';
 import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
+    Card,
+    CardContent,
+    CardHeader,
+    CardTitle,
+} from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { format } from 'date-fns';
 
-// Define types
-type AssetStatus = 'WORKING' | 'NEEDS_REPAIR' | 'OUT_OF_SERVICE' | 'UNDER_MAINTENANCE';
-type AssetType = 'COMPUTER' | 'PRINTER' | 'PROJECTOR' | 'NETWORK_EQUIPMENT' | 'OTHER';
+interface RoomDetailPageProps {
+    params: {
+        id: string;
+    };
+}
 
-type Asset = {
+interface DeploymentItem {
     id: string;
-    assetTag: string | null;
-    assetType: AssetType;
-    systemUnit: string | null;
-    ups: string | null;
-    monitor: string | null;
-    status: AssetStatus;
-    remarks: string | null;
-    roomId: string;
-    createdAt: Date;
-    updatedAt: Date;
-};
+    name: string;
+    itemType: string;
+    subType: string | null;
+    unit: string | null;
+    deployments: {
+        id: string;
+        quantity: number;
+        serialNumber: string | null;
+        date: Date;
+        deployedBy: string;
+        remarks: string | null;
+    }[];
+}
 
-type Room = {
+interface Room {
     id: string;
     number: string;
     name: string | null;
-    type: string;
-    floorId: string;
+    type: string | null;
     floor: {
         id: string;
         number: number;
         name: string | null;
-        buildingId: string;
         building: {
             id: string;
             name: string;
         }
-    };
-    assets: Asset[];
-    createdAt: Date;
-    updatedAt: Date;
-};
-
-// Helper function to get status badge variant
-function getStatusBadge(status: AssetStatus) {
-    switch (status) {
-        case 'WORKING':
-            return <Badge className="bg-green-500">Working</Badge>;
-        case 'NEEDS_REPAIR':
-            return <Badge className="bg-yellow-500">Needs Repair</Badge>;
-        case 'OUT_OF_SERVICE':
-            return <Badge className="bg-red-500">Out of Service</Badge>;
-        case 'UNDER_MAINTENANCE':
-            return <Badge className="bg-blue-500">Under Maintenance</Badge>;
-        default:
-            return <Badge>{status}</Badge>;
     }
 }
 
-export default async function RoomDetailPage({ params }: { params: { id: string } }) {
-    try {
-        const roomId = params.id;
+export default async function RoomDetailPage({ params }: RoomDetailPageProps) {
+    const id = params.id;
 
-        // Fetch room with relationships
-        // @ts-ignore - Using type assertion to bypass TypeScript error
-        const room = await (prisma.room as any).findUnique({
-            where: { id: roomId },
+    try {
+        // Fetch room with floor and building details
+        const room = await prisma.room.findUnique({
+            where: { id },
             include: {
                 floor: {
                     include: {
                         building: true
                     }
-                },
-                assets: true
+                }
             }
         }) as Room | null;
 
@@ -90,135 +70,192 @@ export default async function RoomDetailPage({ params }: { params: { id: string 
             notFound();
         }
 
-        // Group assets by type
-        const computerAssets = room.assets.filter(asset => asset.assetType === 'COMPUTER');
-        const otherAssets = room.assets.filter(asset => asset.assetType !== 'COMPUTER');
+        // Fetch all deployment records for this room
+        const deployments = await prisma.$queryRaw`
+            SELECT 
+                dr.id, 
+                dr.quantity, 
+                dr."serialNumber", 
+                dr.date, 
+                dr."deployedBy", 
+                dr.remarks,
+                si.id as "storageItemId",
+                si.name as "storageItemName",
+                si."itemType", 
+                si."subType",
+                si.unit
+            FROM "DeploymentRecord" dr
+            JOIN "StorageItem" si ON dr."storageItemId" = si.id
+            WHERE dr."toRoomId" = ${id}
+            ORDER BY dr.date DESC
+        `;
+
+        // Group deployments by storage item for better organization
+        const deploymentsByItem: Record<string, DeploymentItem> = {};
+        (deployments as any[]).forEach(deployment => {
+            const itemId = deployment.storageItemId as string;
+
+            if (!deploymentsByItem[ itemId ]) {
+                deploymentsByItem[ itemId ] = {
+                    id: deployment.storageItemId,
+                    name: deployment.storageItemName,
+                    itemType: deployment.itemType,
+                    subType: deployment.subType,
+                    unit: deployment.unit,
+                    deployments: []
+                };
+            }
+
+            deploymentsByItem[ itemId ].deployments.push({
+                id: deployment.id,
+                quantity: deployment.quantity,
+                serialNumber: deployment.serialNumber,
+                date: deployment.date,
+                deployedBy: deployment.deployedBy,
+                remarks: deployment.remarks
+            });
+        });
 
         return (
-            <div className="p-6">
-                <div className="flex items-center gap-2 mb-2">
-                    <Link href="/dashboard/inventory">
+            <div className="container p-6">
+                <div className="flex items-center mb-4">
+                    <Link href="/dashboard/inventory/rooms">
                         <Button variant="ghost" size="sm">
                             <ArrowLeft className="mr-2 h-4 w-4" />
-                            Back to Buildings
+                            Back to Rooms
                         </Button>
                     </Link>
-                    <span className="text-gray-500">
-                        {room.floor.building.name} &gt; Floor {room.floor.number} &gt; Room {room.number}
-                    </span>
                 </div>
 
-                <div className="flex justify-between items-center mb-6">
-                    <h1 className="text-3xl font-bold">
-                        Room {room.number}
-                        {room.name && <span className="ml-2 text-gray-500">({room.name})</span>}
-                    </h1>
-                    <div className="flex gap-2">
-                        <Link href={`/dashboard/inventory/rooms/${room.id}/assets/new`}>
-                            <Button>
-                                <Plus className="mr-2 h-4 w-4" />
-                                Add Asset
-                            </Button>
-                        </Link>
-                        <Link href={`/dashboard/inventory/rooms/${room.id}/edit`}>
-                            <Button variant="outline">Edit Room</Button>
-                        </Link>
-                    </div>
-                </div>
-
-                <div className="space-y-8">
-                    {/* Computer Assets Section */}
-                    <div className="border rounded-lg shadow-sm overflow-hidden">
-                        <div className="bg-slate-100 px-4 py-3 flex items-center">
-                            <Cpu className="mr-2 h-5 w-5" />
-                            <h2 className="text-xl font-semibold">Computers</h2>
-                        </div>
-
-                        {computerAssets.length === 0 ? (
-                            <div className="p-6 text-center">
-                                <p className="text-gray-500">No computers found in this room</p>
-                            </div>
-                        ) : (
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Asset Tag</TableHead>
-                                        <TableHead>System Unit</TableHead>
-                                        <TableHead>Monitor</TableHead>
-                                        <TableHead>UPS</TableHead>
-                                        <TableHead>Status</TableHead>
-                                        <TableHead className="text-right">Actions</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {computerAssets.map(asset => (
-                                        <TableRow key={asset.id}>
-                                            <TableCell className="font-medium">{asset.assetTag || 'N/A'}</TableCell>
-                                            <TableCell>{asset.systemUnit || 'N/A'}</TableCell>
-                                            <TableCell>{asset.monitor || 'N/A'}</TableCell>
-                                            <TableCell>{asset.ups || 'N/A'}</TableCell>
-                                            <TableCell>{getStatusBadge(asset.status)}</TableCell>
-                                            <TableCell className="text-right">
-                                                <Link href={`/dashboard/inventory/assets/${asset.id}`}>
-                                                    <Button variant="ghost" size="sm">View</Button>
-                                                </Link>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        )}
+                <div className="grid gap-6 md:grid-cols-3">
+                    <div className="md:col-span-1">
+                        <Card>
+                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                <CardTitle className="text-2xl font-bold">Room Details</CardTitle>
+                                <Link href={`/dashboard/inventory/rooms/${id}/edit`}>
+                                    <Button size="sm" variant="outline">
+                                        <Edit className="h-4 w-4 mr-2" />
+                                        Edit Room
+                                    </Button>
+                                </Link>
+                            </CardHeader>
+                            <CardContent>
+                                <dl className="space-y-4">
+                                    <div>
+                                        <dt className="text-sm font-medium text-gray-500">Room Number</dt>
+                                        <dd className="mt-1 text-lg">{room.number}</dd>
+                                    </div>
+                                    {room.name && (
+                                        <div>
+                                            <dt className="text-sm font-medium text-gray-500">Room Name</dt>
+                                            <dd className="mt-1 text-lg">{room.name}</dd>
+                                        </div>
+                                    )}
+                                    <div>
+                                        <dt className="text-sm font-medium text-gray-500">Building</dt>
+                                        <dd className="mt-1">{room.floor.building.name}</dd>
+                                    </div>
+                                    <div>
+                                        <dt className="text-sm font-medium text-gray-500">Floor</dt>
+                                        <dd className="mt-1">{`${room.floor.name || `Floor ${room.floor.number}`}`}</dd>
+                                    </div>
+                                    {room.type && (
+                                        <div>
+                                            <dt className="text-sm font-medium text-gray-500">Room Type</dt>
+                                            <dd className="mt-1">
+                                                <Badge variant="outline">{room.type}</Badge>
+                                            </dd>
+                                        </div>
+                                    )}
+                                </dl>
+                            </CardContent>
+                        </Card>
                     </div>
 
-                    {/* Other Assets Section */}
-                    {otherAssets.length > 0 && (
-                        <div className="border rounded-lg shadow-sm overflow-hidden">
-                            <div className="bg-slate-100 px-4 py-3 flex items-center">
-                                <HardDrive className="mr-2 h-5 w-5" />
-                                <h2 className="text-xl font-semibold">Other Equipment</h2>
-                            </div>
+                    <div className="md:col-span-2">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center">
+                                    <Package className="h-5 w-5 mr-2" />
+                                    Deployed Assets
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                {Object.keys(deploymentsByItem).length === 0 ? (
+                                    <div className="text-center py-4">
+                                        <p className="text-gray-500 mb-4">No assets deployed to this room yet</p>
+                                        <Link href="/dashboard/inventory/storage">
+                                            <Button>
+                                                Deploy Assets to Room
+                                            </Button>
+                                        </Link>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <div className="mb-4 flex justify-end">
+                                            <Link href="/dashboard/inventory/storage">
+                                                <Button>
+                                                    Deploy More Assets
+                                                </Button>
+                                            </Link>
+                                        </div>
+                                        <div className="space-y-8">
+                                            {Object.values(deploymentsByItem).map((item: DeploymentItem) => (
+                                                <div key={item.id} className="border-b pb-6 last:border-0">
+                                                    <h3 className="text-lg font-medium mb-2">
+                                                        <Link href={`/dashboard/inventory/storage/${item.id}`} className="text-blue-600 hover:underline">
+                                                            {item.name}
+                                                        </Link>
+                                                        <span className="ml-2 text-sm text-gray-500">
+                                                            {item.itemType}{item.subType && ` (${item.subType})`}
+                                                        </span>
+                                                    </h3>
 
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Asset Tag</TableHead>
-                                        <TableHead>Type</TableHead>
-                                        <TableHead>Details</TableHead>
-                                        <TableHead>Status</TableHead>
-                                        <TableHead className="text-right">Actions</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {otherAssets.map(asset => (
-                                        <TableRow key={asset.id}>
-                                            <TableCell className="font-medium">{asset.assetTag || 'N/A'}</TableCell>
-                                            <TableCell>{asset.assetType}</TableCell>
-                                            <TableCell>{asset.remarks || 'N/A'}</TableCell>
-                                            <TableCell>{getStatusBadge(asset.status)}</TableCell>
-                                            <TableCell className="text-right">
-                                                <Link href={`/dashboard/inventory/assets/${asset.id}`}>
-                                                    <Button variant="ghost" size="sm">View</Button>
-                                                </Link>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </div>
-                    )}
+                                                    <div className="space-y-4 mt-3">
+                                                        {item.deployments.map((deployment) => (
+                                                            <div key={deployment.id} className="bg-muted rounded-md p-3">
+                                                                <div className="flex flex-wrap justify-between items-center mb-2">
+                                                                    <span className="font-medium">
+                                                                        {deployment.quantity} {item.unit || 'units'}
+                                                                    </span>
+                                                                    <div className="flex items-center text-sm text-gray-500">
+                                                                        <Calendar className="h-3.5 w-3.5 mr-1" />
+                                                                        {format(new Date(deployment.date), 'PPP p')}
+                                                                    </div>
+                                                                </div>
+
+                                                                {deployment.serialNumber && (
+                                                                    <div className="text-sm my-1">
+                                                                        Serial: <Badge variant="outline">{deployment.serialNumber}</Badge>
+                                                                    </div>
+                                                                )}
+
+                                                                <div className="text-sm flex items-center">
+                                                                    <User className="h-3.5 w-3.5 mr-1" />
+                                                                    Deployed by: {deployment.deployedBy}
+                                                                </div>
+
+                                                                {deployment.remarks && (
+                                                                    <div className="text-sm text-gray-600 mt-1 italic">
+                                                                        &ldquo;{deployment.remarks}&rdquo;
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </div>
                 </div>
             </div>
         );
     } catch (error) {
-        console.error("Error in room detail page:", error);
-        return (
-            <div className="p-6">
-                <h1 className="text-3xl font-bold mb-6">Room Details</h1>
-                <div className="bg-red-50 border border-red-300 p-4 rounded-md">
-                    <p className="text-red-700">There was an error loading the room details. Please ensure the database is properly configured.</p>
-                    <p className="text-sm text-red-500 mt-2">Error details: {error instanceof Error ? error.message : String(error)}</p>
-                </div>
-            </div>
-        );
+        console.error("Error in room detail:", error);
+        throw error;
     }
 } 

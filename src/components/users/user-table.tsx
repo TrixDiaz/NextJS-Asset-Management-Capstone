@@ -212,7 +212,7 @@ export function UserTable({ data }: UserTableProps) {
                                 </TableCell>
                                 <TableCell className="font-medium">
                                     <div className="flex items-center space-x-2">
-                                        <div className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center">
+                                        <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
                                             {user.profileImageUrl ? (
                                                 <img
                                                     src={user.profileImageUrl}

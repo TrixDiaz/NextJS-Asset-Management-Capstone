@@ -39,15 +39,15 @@ interface ProfileFormType {
 const ProfileCreateForm: React.FC<ProfileFormType> = ({ initialData }) => {
   const params = useParams();
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
-  const [open, setOpen] = useState(false);
+  const [ loading, setLoading ] = useState(false);
+  const [ open, setOpen ] = useState(false);
   const title = initialData ? 'Edit product' : 'Create Your Profile';
   const description = initialData
     ? 'Edit a product.'
     : 'To create your resume, we first need some basic information about you.';
-  const [previousStep, setPreviousStep] = useState(0);
-  const [currentStep, setCurrentStep] = useState(0);
-  const [data, setData] = useState({});
+  const [ previousStep, setPreviousStep ] = useState(0);
+  const [ currentStep, setCurrentStep ] = useState(0);
+  const [ data, setData ] = useState({});
 
   const defaultValues = {
     jobs: [
@@ -91,7 +91,7 @@ const ProfileCreateForm: React.FC<ProfileFormType> = ({ initialData }) => {
     {
       id: 'Step 1',
       name: 'Personal Information',
-      fields: ['firstname', 'lastname', 'email', 'contactno', 'country', 'city']
+      fields: [ 'firstname', 'lastname', 'email', 'contactno', 'country', 'city' ]
     },
     {
       id: 'Step 2',
@@ -113,7 +113,7 @@ const ProfileCreateForm: React.FC<ProfileFormType> = ({ initialData }) => {
   ];
 
   const next = async () => {
-    const fields = steps[currentStep].fields;
+    const fields = steps[ currentStep ].fields;
 
     const output = await form.trigger(fields as FieldName[], {
       shouldFocus: true
@@ -137,8 +137,8 @@ const ProfileCreateForm: React.FC<ProfileFormType> = ({ initialData }) => {
     }
   };
 
-  const countries = [{ id: 'wow', name: 'india' }];
-  const cities = [{ id: '2', name: 'kerala' }];
+  const countries = [ { id: 'wow', name: 'india' } ];
+  const cities = [ { id: '2', name: 'kerala' } ];
 
   return (
     <>
@@ -354,7 +354,7 @@ const ProfileCreateForm: React.FC<ProfileFormType> = ({ initialData }) => {
                       <AccordionTrigger
                         className={cn(
                           'relative no-underline! [&[data-state=closed]>button]:hidden [&[data-state=open]>.alert]:hidden',
-                          errors?.jobs?.[index] && 'text-red-700'
+                          errors?.jobs?.[ index ] && 'text-red-700'
                         )}
                       >
                         {`Work Experience ${index + 1}`}
@@ -367,7 +367,7 @@ const ProfileCreateForm: React.FC<ProfileFormType> = ({ initialData }) => {
                         >
                           <IconTrash className='h-4 w-4' />
                         </Button>
-                        {errors?.jobs?.[index] && (
+                        {errors?.jobs?.[ index ] && (
                           <span className='alert absolute right-8'>
                             <IconAlertTriangle className='h-4 w-4 text-red-700' />
                           </span>
@@ -563,7 +563,7 @@ const ProfileCreateForm: React.FC<ProfileFormType> = ({ initialData }) => {
             type='button'
             onClick={prev}
             disabled={currentStep === 0}
-            className='rounded bg-white px-2 py-1 text-sm font-semibold text-sky-900 shadow-xs ring-1 ring-sky-300 ring-inset hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-50'
+            className='rounded bg-primary/10 px-2 py-1 text-sm font-semibold text-primary shadow-xs ring-1 ring-primary/30 ring-inset hover:bg-primary/5 disabled:cursor-not-allowed disabled:opacity-50'
           >
             <svg
               xmlns='http://www.w3.org/2000/svg'
@@ -584,7 +584,7 @@ const ProfileCreateForm: React.FC<ProfileFormType> = ({ initialData }) => {
             type='button'
             onClick={next}
             disabled={currentStep === steps.length - 1}
-            className='rounded bg-white px-2 py-1 text-sm font-semibold text-sky-900 shadow-xs ring-1 ring-sky-300 ring-inset hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-50'
+            className='rounded bg-primary/10 px-2 py-1 text-sm font-semibold text-primary shadow-xs ring-1 ring-primary/30 ring-inset hover:bg-primary/5 disabled:cursor-not-allowed disabled:opacity-50'
           >
             <svg
               xmlns='http://www.w3.org/2000/svg'

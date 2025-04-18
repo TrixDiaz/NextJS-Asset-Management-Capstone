@@ -9,14 +9,20 @@ export async function GET(
     try {
         const id = params.id;
 
-        const storageItem = await prisma.storageItem.findUnique({
+        // Using any because Prisma types might not be updated
+        const storageItem = await (prisma.storageItem as any).findUnique({
             where: { id },
-            include: {
-                deploymentHistory: {
-                    orderBy: {
-                        date: 'desc'
-                    }
-                }
+            select: {
+                id: true,
+                name: true,
+                itemType: true,
+                subType: true,
+                quantity: true,
+                unit: true,
+                remarks: true,
+                serialNumbers: true,
+                createdAt: true,
+                updatedAt: true
             }
         });
 
@@ -31,7 +37,7 @@ export async function GET(
     } catch (error) {
         console.error('Error fetching storage item:', error);
         return NextResponse.json(
-            { error: 'Failed to fetch storage item' },
+            { error: 'An error occurred while fetching the storage item' },
             { status: 500 }
         );
     }
@@ -45,7 +51,8 @@ export async function PATCH(
     try {
         const id = params.id;
         const data = await req.json();
-        const { name, itemType, quantity, unit, remarks } = data;
+        console.log("Update data received:", data);
+        const { name, itemType, subType, quantity, unit, remarks, serialNumbers } = data;
 
         // Check if storage item exists
         const existingItem = await prisma.storageItem.findUnique({
@@ -59,23 +66,38 @@ export async function PATCH(
             );
         }
 
-        // Update the storage item
-        const updatedItem = await prisma.storageItem.update({
-            where: { id },
-            data: {
-                name,
-                itemType,
-                quantity: quantity ?? 0,
-                unit,
-                remarks
-            }
-        });
+        // Ensure serialNumbers is an array
+        const safeSerialNumbers = Array.isArray(serialNumbers) ? serialNumbers : [];
 
-        return NextResponse.json(updatedItem);
+        try {
+            // Use raw SQL for updating the item to bypass Prisma validation issues
+            const updatedItem = await prisma.$queryRaw`
+                UPDATE "StorageItem"
+                SET 
+                    name = ${name},
+                    "itemType" = ${itemType},
+                    "subType" = ${subType || null},
+                    quantity = ${quantity ?? 0},
+                    unit = ${unit || null},
+                    remarks = ${remarks || null},
+                    "serialNumbers" = ${safeSerialNumbers}::text[],
+                    "updatedAt" = NOW()
+                WHERE id = ${id}
+                RETURNING *;
+            `;
+
+            return NextResponse.json(updatedItem);
+        } catch (prismaError) {
+            console.error("Prisma update error:", prismaError);
+            return NextResponse.json(
+                { error: 'Database error updating storage item', details: String(prismaError) },
+                { status: 500 }
+            );
+        }
     } catch (error) {
         console.error('Error updating storage item:', error);
         return NextResponse.json(
-            { error: 'Failed to update storage item' },
+            { error: 'Failed to update storage item', details: String(error) },
             { status: 500 }
         );
     }

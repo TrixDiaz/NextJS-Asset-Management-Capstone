@@ -86,7 +86,7 @@ export default async function StorageInventoryPage() {
                     <div className="space-y-8">
                         {sortedItemTypes.map(itemType => (
                             <div key={itemType} className="border rounded-lg shadow-sm overflow-hidden">
-                                <div className="bg-slate-100 px-4 py-3">
+                                <div className="bg-primary/10 px-4 py-3">
                                     <h2 className="text-xl font-semibold">{itemType}</h2>
                                 </div>
                                 <div className="p-0">

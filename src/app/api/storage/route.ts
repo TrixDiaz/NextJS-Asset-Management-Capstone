@@ -32,7 +32,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
     try {
         const data = await req.json();
-        const { name, itemType, quantity, unit, remarks } = data;
+        console.log("Received data:", data);
+        const { name, itemType, subType, quantity, unit, remarks, serialNumbers } = data;
 
         if (!name || !itemType) {
             return NextResponse.json(
@@ -41,22 +42,32 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // @ts-ignore - Using type assertion to bypass TypeScript error
-        const storageItem = await (prisma.storageItem as any).create({
-            data: {
-                name,
-                itemType,
-                quantity: quantity || 0,
-                unit,
-                remarks
-            }
-        });
+        // Ensure serialNumbers is always an array
+        const safeSerialNumbers = Array.isArray(serialNumbers) ? serialNumbers : [];
 
-        return NextResponse.json(storageItem, { status: 201 });
+        try {
+            // Use raw SQL for creating the item to bypass Prisma validation issues
+            const storageItem = await prisma.$queryRaw`
+                INSERT INTO "StorageItem" 
+                (id, name, "itemType", "subType", quantity, unit, remarks, "serialNumbers", "createdAt", "updatedAt") 
+                VALUES 
+                (gen_random_uuid(), ${name}, ${itemType}, ${subType || null}, ${quantity || 0}, ${unit || null}, ${remarks || null}, ${safeSerialNumbers}::text[], NOW(), NOW())
+                RETURNING *;
+            `;
+
+            console.log("Created storage item:", storageItem);
+            return NextResponse.json(storageItem, { status: 201 });
+        } catch (prismaError) {
+            console.error("Prisma error:", prismaError);
+            return NextResponse.json(
+                { error: 'Database error creating storage item', details: String(prismaError) },
+                { status: 500 }
+            );
+        }
     } catch (error) {
         console.error('Error creating storage item:', error);
         return NextResponse.json(
-            { error: 'Failed to create storage item' },
+            { error: 'Failed to create storage item', details: String(error) },
             { status: 500 }
         );
     }

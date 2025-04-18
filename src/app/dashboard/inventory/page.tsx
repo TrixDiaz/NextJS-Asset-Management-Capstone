@@ -107,7 +107,7 @@ export default async function InventoryDashboard() {
                                                         <Link
                                                             key={room.id}
                                                             href={`/dashboard/inventory/rooms/${room.id}`}
-                                                            className="block p-2 border rounded hover:bg-slate-50 transition-colors"
+                                                            className="block p-2 border rounded hover:bg-primary/10 transition-colors"
                                                         >
                                                             <div className="font-medium">Room {room.number}</div>
                                                             {room.name && <div className="text-sm text-gray-500">{room.name}</div>}

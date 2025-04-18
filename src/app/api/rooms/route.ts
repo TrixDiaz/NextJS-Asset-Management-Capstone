@@ -1,45 +1,107 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-// GET all rooms or rooms by floor ID or building ID
+// GET all rooms
 export async function GET(req: NextRequest) {
     try {
+        // Get search params for filtering
         const { searchParams } = new URL(req.url);
-        const floorId = searchParams.get('floorId');
         const buildingId = searchParams.get('buildingId');
+        const floorId = searchParams.get('floorId');
+        const roomType = searchParams.get('type');
 
-        let whereClause = {};
+        // Build where clause based on filters
+        let whereClause: any = {};
 
-        if (floorId) {
-            whereClause = { floorId };
-        } else if (buildingId) {
-            // Get all rooms in a building across all floors
-            const floors = await prisma.floor.findMany({
-                where: { buildingId },
-                select: { id: true }
-            });
-
-            const floorIds = floors.map(floor => floor.id);
-            whereClause = { floorId: { in: floorIds } };
+        if (buildingId) {
+            whereClause.floor = {
+                buildingId
+            };
         }
 
-        const rooms = await prisma.room.findMany({
-            where: whereClause,
-            include: {
+        if (floorId) {
+            whereClause.floorId = floorId;
+        }
+
+        if (roomType) {
+            whereClause.type = roomType;
+        }
+
+        // Use raw query for more complex joins
+        let rooms;
+        try {
+            rooms = await prisma.$queryRaw`
+                SELECT 
+                    r.id, 
+                    r.number, 
+                    r.name, 
+                    r."type", 
+                    r."floorId",
+                    f.number as "floorNumber",
+                    f."buildingId",
+                    b.name as "buildingName"
+                FROM "Room" r
+                JOIN "Floor" f ON r."floorId" = f.id
+                JOIN "Building" b ON f."buildingId" = b.id
+                ORDER BY b.name, f.number, r.number
+            `;
+
+            // Format the response to match the expected structure
+            const formattedRooms = (rooms as any[]).map(room => ({
+                id: room.id,
+                number: room.number,
+                name: room.name,
+                type: room.type,
                 floor: {
-                    include: {
-                        building: true
+                    id: room.floorId,
+                    number: room.floorNumber,
+                    building: {
+                        id: room.buildingId,
+                        name: room.buildingName
+                    }
+                }
+            }));
+
+            return NextResponse.json(formattedRooms);
+        } catch (queryError) {
+            console.error('Error in rooms query:', queryError);
+
+            // Fallback to simpler query if the complex one fails
+            console.log('Trying simpler query...');
+
+            const fallbackRooms = await prisma.room.findMany({
+                where: whereClause,
+                select: {
+                    id: true,
+                    number: true,
+                    name: true,
+                    type: true,
+                    floor: {
+                        select: {
+                            id: true,
+                            number: true,
+                            building: {
+                                select: {
+                                    id: true,
+                                    name: true
+                                }
+                            }
+                        }
                     }
                 },
-                assets: true
-            }
-        });
+                orderBy: [
+                    { floor: { building: { name: 'asc' } } },
+                    { floor: { number: 'asc' } },
+                    { number: 'asc' }
+                ]
+            });
 
-        return NextResponse.json(rooms);
+            return NextResponse.json(fallbackRooms);
+        }
     } catch (error) {
         console.error('Error fetching rooms:', error);
         return NextResponse.json(
-            { error: 'Failed to fetch rooms' },
+            { error: 'Failed to fetch rooms', details: String(error) },
             { status: 500 }
         );
     }

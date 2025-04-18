@@ -1,0 +1,153 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+
+// GET a specific room
+export async function GET(
+    req: NextRequest,
+    { params }: { params: { id: string } }
+) {
+    try {
+        const id = params.id;
+
+        // Fetch room with floor and building details
+        const room = await prisma.room.findUnique({
+            where: { id },
+            include: {
+                floor: {
+                    include: {
+                        building: true
+                    }
+                }
+            }
+        });
+
+        if (!room) {
+            return NextResponse.json(
+                { error: 'Room not found' },
+                { status: 404 }
+            );
+        }
+
+        return NextResponse.json(room);
+    } catch (error) {
+        console.error('Error fetching room:', error);
+        return NextResponse.json(
+            { error: 'An error occurred while fetching the room', details: String(error) },
+            { status: 500 }
+        );
+    }
+}
+
+// PATCH to update a room
+export async function PATCH(
+    req: NextRequest,
+    { params }: { params: { id: string } }
+) {
+    try {
+        const id = params.id;
+        const data = await req.json();
+        console.log("Update room data received:", data);
+        const { number, name, type, floorId } = data;
+
+        // Check if room exists
+        const existingRoom = await prisma.room.findUnique({
+            where: { id }
+        });
+
+        if (!existingRoom) {
+            return NextResponse.json(
+                { error: 'Room not found' },
+                { status: 404 }
+            );
+        }
+
+        // Check if floor exists
+        if (floorId) {
+            const floor = await prisma.floor.findUnique({
+                where: { id: floorId }
+            });
+
+            if (!floor) {
+                return NextResponse.json(
+                    { error: 'Floor not found' },
+                    { status: 404 }
+                );
+            }
+        }
+
+        // Update the room
+        const updatedRoom = await prisma.room.update({
+            where: { id },
+            data: {
+                number,
+                name: name || null,
+                type: type || null,
+                floorId
+            },
+            include: {
+                floor: {
+                    include: {
+                        building: true
+                    }
+                }
+            }
+        });
+
+        return NextResponse.json(updatedRoom);
+    } catch (error) {
+        console.error('Error updating room:', error);
+        return NextResponse.json(
+            { error: 'Failed to update room', details: String(error) },
+            { status: 500 }
+        );
+    }
+}
+
+// DELETE a room
+export async function DELETE(
+    req: NextRequest,
+    { params }: { params: { id: string } }
+) {
+    try {
+        const id = params.id;
+
+        // Check if room exists
+        const existingRoom = await prisma.room.findUnique({
+            where: { id }
+        });
+
+        if (!existingRoom) {
+            return NextResponse.json(
+                { error: 'Room not found' },
+                { status: 404 }
+            );
+        }
+
+        // Check if room has deployed items
+        const deploymentCount = await prisma.deploymentRecord.count({
+            where: { toRoomId: id }
+        });
+
+        if (deploymentCount > 0) {
+            return NextResponse.json(
+                {
+                    error: 'Cannot delete room with deployed items. Please relocate all items first.'
+                },
+                { status: 400 }
+            );
+        }
+
+        // Delete the room
+        await prisma.room.delete({
+            where: { id }
+        });
+
+        return NextResponse.json({ success: true });
+    } catch (error) {
+        console.error('Error deleting room:', error);
+        return NextResponse.json(
+            { error: 'Failed to delete room', details: String(error) },
+            { status: 500 }
+        );
+    }
+} 
