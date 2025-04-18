@@ -28,4 +28,147 @@ model User {
   publicMetadata   Json?     @default("{}")
   privateMetadata  Json?     @default("{}")
   unsafeMetadata   Json?     @default("{}")
+  permissions      UserPermission[]
+}
+
+// Permission and UserPermission models for role-based access control
+model Permission {
+  id          String           @id @default(cuid())
+  name        String           @unique
+  description String
+  code        String           @unique
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  users       UserPermission[]
+}
+
+model UserPermission {
+  userId       String
+  permissionId String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+
+  @@id([userId, permissionId])
+  @@index([userId])
+  @@index([permissionId])
+}
+
+// Inventory Management System Models
+
+model Building {
+  id        String    @id @default(cuid())
+  name      String    @unique // e.g., "KorPhil"
+  code      String?   @unique // A unique code for the building if needed
+  address   String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  floors    Floor[]
+}
+
+model Floor {
+  id         String     @id @default(cuid())
+  number     Int        // e.g., 3 for 3rd floor
+  name       String?    // Optional name for the floor
+  buildingId String
+  building   Building   @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  rooms      Room[]
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  @@unique([buildingId, number]) // Ensure floor numbers are unique within a building
+}
+
+model Room {
+  id          String     @id @default(cuid())
+  number      String     // e.g., "302"
+  name        String?    // Optional name for the room like "Computer Lab"
+  type        RoomType   @default(CLASSROOM)
+  floorId     String
+  floor       Floor      @relation(fields: [floorId], references: [id], onDelete: Cascade)
+  assets      Asset[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@unique([floorId, number]) // Ensure room numbers are unique within a floor
+}
+
+enum RoomType {
+  CLASSROOM
+  OFFICE
+  LABORATORY
+  STORAGE
+  OTHER
+}
+
+model Asset {
+  id              String          @id @default(cuid())
+  assetTag        String?         @unique // Optional tracking ID/tag
+  assetType       AssetType
+  systemUnit      String?         // For computers: model/serial number
+  ups             String?         // UPS model/serial number
+  monitor         String?         // Monitor model/serial number
+  status          AssetStatus     @default(WORKING)
+  remarks         String?
+  roomId          String
+  room            Room            @relation(fields: [roomId], references: [id])
+  maintenanceHistory MaintenanceRecord[]
+  deploymentHistory DeploymentRecord[]
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+}
+
+enum AssetType {
+  COMPUTER
+  PRINTER
+  PROJECTOR
+  NETWORK_EQUIPMENT
+  OTHER
+}
+
+enum AssetStatus {
+  WORKING
+  NEEDS_REPAIR
+  OUT_OF_SERVICE
+  UNDER_MAINTENANCE
+}
+
+model StorageItem {
+  id          String    @id @default(cuid())
+  name        String
+  itemType    String    // Category like "CABLE", "SOFTWARE", "HARDWARE"
+  quantity    Int       @default(0)
+  unit        String?   // e.g., "meters", "pieces", "box"
+  remarks     String?
+  deploymentHistory DeploymentRecord[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model MaintenanceRecord {
+  id          String    @id @default(cuid())
+  assetId     String
+  asset       Asset     @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  date        DateTime
+  description String
+  technician  String?
+  status      String    // e.g., "COMPLETED", "PENDING", "IN_PROGRESS"
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model DeploymentRecord {
+  id            String       @id @default(cuid())
+  assetId       String?
+  asset         Asset?       @relation(fields: [assetId], references: [id], onDelete: SetNull)
+  storageItemId String?
+  storageItem   StorageItem? @relation(fields: [storageItemId], references: [id], onDelete: SetNull)
+  quantity      Int          @default(1)
+  fromRoomId    String?      // Could be a storage room or another room
+  toRoomId      String?      // Destination room
+  date          DateTime
+  deployedBy    String
+  remarks       String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
 }
