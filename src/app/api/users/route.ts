@@ -15,7 +15,7 @@ const userCreateSchema = z.object({
 // GET all users
 export async function GET(req: NextRequest) {
     try {
-        // Check if prisma client is available
+        // Check if prisma client is initialized
         if (!prisma || !prisma.user) {
             throw new Error("Prisma client is not properly initialized");
         }
@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
             ];
         }
 
-        // Fetch users
+        // Fetch users with their permissions
         const users = await prisma.user.findMany({
             where: whereClause,
             include: {
@@ -55,11 +55,18 @@ export async function GET(req: NextRequest) {
             }
         });
 
-        return NextResponse.json(users);
+        // Format dates to ensure consistent format
+        const formattedUsers = users.map(user => ({
+            ...user,
+            createdAt: user.createdAt.toISOString(),
+            updatedAt: user.updatedAt.toISOString(),
+        }));
+
+        return NextResponse.json(formattedUsers);
     } catch (error) {
-        console.error('Error fetching users:', error);
+        console.error("Error fetching users:", error);
         return NextResponse.json(
-            { error: 'Failed to fetch users', details: error instanceof Error ? error.message : String(error) },
+            { error: "Failed to fetch users" },
             { status: 500 }
         );
     }

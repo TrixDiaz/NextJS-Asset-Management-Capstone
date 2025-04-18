@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 
-// Schema for bulk delete
-const bulkDeleteSchema = z.object({
-    userIds: z.array(z.string())
+// Schema for bulk role update
+const bulkUpdateSchema = z.object({
+    userIds: z.array(z.string()),
+    role: z.enum([ 'admin', 'manager', 'user', 'guest' ])
 });
 
 export async function POST(req: NextRequest) {
@@ -17,7 +18,7 @@ export async function POST(req: NextRequest) {
         const body = await req.json();
 
         // Validate input
-        const result = bulkDeleteSchema.safeParse(body);
+        const result = bulkUpdateSchema.safeParse(body);
         if (!result.success) {
             return NextResponse.json(
                 { error: 'Validation failed', details: result.error.format() },
@@ -25,7 +26,7 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        const { userIds } = result.data;
+        const { userIds, role } = result.data;
 
         // Safety check - don't allow empty array 
         if (userIds.length === 0) {
@@ -35,22 +36,25 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // Delete the users
-        const deleteResult = await prisma.user.deleteMany({
+        // Update the users
+        const updateResult = await prisma.user.updateMany({
             where: {
                 id: {
                     in: userIds
                 }
+            },
+            data: {
+                role
             }
         });
 
         return NextResponse.json({
-            message: `${deleteResult.count} users deleted successfully`
+            message: `${updateResult.count} users updated successfully to ${role} role`
         });
     } catch (error) {
-        console.error('Error deleting users:', error);
+        console.error('Error updating users:', error);
         return NextResponse.json(
-            { error: 'Failed to delete users', details: error instanceof Error ? error.message : String(error) },
+            { error: 'Failed to update users', details: error instanceof Error ? error.message : String(error) },
             { status: 500 }
         );
     }

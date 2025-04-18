@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useCallback, useMemo, useEffect } from "react"
 import {
     ColumnDef,
     ColumnFiltersState,
@@ -67,9 +67,10 @@ import { UserTableItem, Role } from "@/types/user"
 
 interface DataTableProps {
     data: UserTableItem[]
+    onSelectionChange?: (count: number, selectedIds?: string[]) => void
 }
 
-export function DataTable({ data }: DataTableProps) {
+export function DataTable({ data, onSelectionChange }: DataTableProps) {
     const [ sorting, setSorting ] = useState<SortingState>([])
     const [ columnFilters, setColumnFilters ] = useState<ColumnFiltersState>([])
     const [ columnVisibility, setColumnVisibility ] = useState<VisibilityState>({})
@@ -79,6 +80,38 @@ export function DataTable({ data }: DataTableProps) {
     const [ showBulkDeleteDialog, setShowBulkDeleteDialog ] = useState(false)
     const [ showBulkStatusDialog, setShowBulkStatusDialog ] = useState(false)
     const [ bulkStatusValue, setBulkStatusValue ] = useState<Role>("user")
+
+    // Memoize the row selection handler to prevent infinite updates
+    const handleRowSelectionChange = useCallback((value: any) => {
+        setRowSelection(value);
+    }, []);
+
+    // Memoize selected rows calculation to avoid unnecessary recalculations
+    const selectedRows = useMemo(() => {
+        const selectedCount = Object.keys(rowSelection).length;
+
+        if (data.length > 0) {
+            // Get the IDs of selected rows safely
+            const selectedIds = Object.keys(rowSelection)
+                .filter(index => Boolean(rowSelection[ index as keyof typeof rowSelection ]))
+                .map(index => {
+                    const dataIndex = parseInt(index);
+                    return dataIndex < data.length ? data[ dataIndex ].id : null;
+                })
+                .filter(Boolean) as string[];
+
+            return { count: selectedCount, ids: selectedIds };
+        }
+
+        return { count: 0, ids: [] };
+    }, [ rowSelection, data ]);
+
+    // Only notify parent when the selection actually changes, with a proper cleanup
+    useEffect(() => {
+        if (onSelectionChange) {
+            onSelectionChange(selectedRows.count, selectedRows.ids);
+        }
+    }, [ selectedRows, onSelectionChange ]);
 
     // User role badge color mapping
     const getRoleBadgeVariant = (role: Role) => {
@@ -105,14 +138,18 @@ export function DataTable({ data }: DataTableProps) {
                         table.getIsAllPageRowsSelected() ||
                         (table.getIsSomePageRowsSelected() && "indeterminate")
                     }
-                    onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+                    onCheckedChange={(checked: boolean) => {
+                        table.toggleAllPageRowsSelected(!!checked);
+                    }}
                     aria-label="Select all"
                 />
             ),
             cell: ({ row }) => (
                 <Checkbox
                     checked={row.getIsSelected()}
-                    onCheckedChange={(value) => row.toggleSelected(!!value)}
+                    onCheckedChange={(checked: boolean) => {
+                        row.toggleSelected(!!checked);
+                    }}
                     aria-label="Select row"
                 />
             ),
@@ -412,7 +449,7 @@ export function DataTable({ data }: DataTableProps) {
             rowSelection,
         },
         enableRowSelection: true,
-        onRowSelectionChange: setRowSelection,
+        onRowSelectionChange: handleRowSelectionChange,
         onSortingChange: setSorting,
         onColumnFiltersChange: setColumnFilters,
         onColumnVisibilityChange: setColumnVisibility,
