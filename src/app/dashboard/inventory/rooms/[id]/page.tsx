@@ -23,6 +23,7 @@ import {
     DialogFooter,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { setEntityNameInStorage } from '@/hooks/use-breadcrumbs';
 
 interface RoomDetailPageProps {
     params: {
@@ -104,6 +105,19 @@ export default function RoomDetailPage({ params }: RoomDetailPageProps) {
                 }
                 const roomData = await roomResponse.json();
                 setRoom(roomData);
+
+                // Store room name, floor name, and building name in localStorage for breadcrumbs
+                const roomName = roomData.name
+                    ? `Room ${roomData.number} - ${roomData.name}`
+                    : `Room ${roomData.number}`;
+                setEntityNameInStorage('room', id, roomName);
+
+                const floorName = roomData.floor.name
+                    ? `Floor ${roomData.floor.number} - ${roomData.floor.name}`
+                    : `Floor ${roomData.floor.number}`;
+                setEntityNameInStorage('floor', roomData.floor.id, floorName);
+
+                setEntityNameInStorage('building', roomData.floor.building.id, roomData.floor.building.name);
 
                 // Generate QR code
                 const qrData = {
