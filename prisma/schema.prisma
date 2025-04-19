@@ -89,6 +89,7 @@ model Room {
   floorId     String
   floor       Floor      @relation(fields: [floorId], references: [id], onDelete: Cascade)
   assets      Asset[]
+  tickets     Ticket[]
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
   schedules   Schedule[]
@@ -117,6 +118,7 @@ model Asset {
   room            Room            @relation(fields: [roomId], references: [id])
   maintenanceHistory MaintenanceRecord[]
   deploymentHistory DeploymentRecord[]
+  tickets         Ticket[]
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 }
@@ -193,4 +195,61 @@ model Schedule {
   updatedAt   DateTime  @updatedAt
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   room        Room      @relation(fields: [roomId], references: [id])
+}
+
+// Ticket Management System Models
+model Ticket {
+  id           String         @id @default(cuid())
+  title        String
+  description  String
+  status       TicketStatus   @default(OPEN)
+  priority     TicketPriority @default(MEDIUM)
+  createdById  String         // User who created the ticket
+  assignedToId String?        // Technician who is assigned to the ticket
+  moderatorId  String?        // Moderator overseeing the ticket
+  assetId      String?        // Related asset if applicable
+  asset        Asset?         @relation(fields: [assetId], references: [id], onDelete: SetNull)
+  roomId       String?        // Room where the issue is located
+  room         Room?          @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  resolvedAt   DateTime?      // When the ticket was resolved
+  attachments  Attachment[]
+  comments     TicketComment[]
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+model Attachment {
+  id        String   @id @default(cuid())
+  fileName  String
+  fileUrl   String
+  fileType  String
+  fileSize  Int
+  ticketId  String
+  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  uploadedAt DateTime @default(now())
+}
+
+model TicketComment {
+  id        String   @id @default(cuid())
+  content   String
+  ticketId  String
+  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  authorId  String   // User ID who wrote the comment
+  isPrivate Boolean  @default(false) // If true, only visible to moderators and technicians
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
