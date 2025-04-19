@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { apiMiddleware } from '../middleware';
+import { LogResource } from '@/lib/logger';
 
 // GET all buildings
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
     try {
         const buildings = await prisma.building.findMany({
             orderBy: { name: 'asc' }
@@ -19,7 +21,7 @@ export async function GET(req: NextRequest) {
 }
 
 // POST to create a new building
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
     try {
         const data = await req.json();
         const { name, code, address } = data;
@@ -59,4 +61,14 @@ export async function POST(req: NextRequest) {
             { status: 500 }
         );
     }
+}
+
+// Apply middleware to GET handler
+export function GET(req: NextRequest) {
+    return apiMiddleware(req, handleGET, { resource: LogResource.BUILDING });
+}
+
+// Apply middleware to POST handler
+export function POST(req: NextRequest) {
+    return apiMiddleware(req, handlePOST, { resource: LogResource.BUILDING });
 } 

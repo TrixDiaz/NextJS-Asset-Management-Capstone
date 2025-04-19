@@ -67,6 +67,14 @@ export const navItems: NavItem[] = [
     items: [] // No child items
   },
   {
+    title: 'Logs',
+    url: '/dashboard/logs',
+    icon: 'activity',
+    shortcut: [ 'l', 'l' ],
+    isActive: false,
+    items: [] // No child items
+  },
+  {
     title: 'Account',
     url: '#', // Placeholder as there is no direct link for the parent
     icon: 'billing',

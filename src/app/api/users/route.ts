@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { apiMiddleware } from '../middleware';
+import { LogResource } from '@/lib/logger';
 
 // Schema for user creation
 const userCreateSchema = z.object({
@@ -13,7 +15,7 @@ const userCreateSchema = z.object({
 });
 
 // GET all users
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
     try {
         // Check if prisma client is initialized
         if (!prisma || !prisma.user) {
@@ -102,7 +104,7 @@ export async function GET(req: NextRequest) {
 }
 
 // POST create new user
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
     try {
         // Check if prisma client is available
         if (!prisma || !prisma.user) {
@@ -151,4 +153,14 @@ export async function POST(req: NextRequest) {
             { status: 500 }
         );
     }
+}
+
+// Apply middleware to GET handler
+export function GET(req: NextRequest) {
+    return apiMiddleware(req, handleGET, { resource: LogResource.USER });
+}
+
+// Apply middleware to POST handler
+export function POST(req: NextRequest) {
+    return apiMiddleware(req, handlePOST, { resource: LogResource.USER });
 } 

@@ -10,8 +10,10 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
 import { UserAvatarProfile } from '@/components/user-avatar-profile';
-import { SignOutButton, useUser } from '@clerk/nextjs';
+import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
+import { LoggedSignOut } from '@/components/auth/logged-sign-out';
+
 export function UserNav() {
   const { user } = useUser();
   const router = useRouter();
@@ -47,7 +49,7 @@ export function UserNav() {
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
           <DropdownMenuItem>
-            <SignOutButton redirectUrl='/auth/sign-in' />
+            <LoggedSignOut redirectUrl='/auth/sign-in' />
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
