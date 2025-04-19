@@ -224,39 +224,11 @@ export default function SchedulesPage() {
         return "Unknown User";
     };
 
-    // Add a seed function to create sample data if needed
-    const seedSampleData = async () => {
-        try {
-            const origin = window.location.origin;
-            const response = await fetch(`${origin}/api/seed`, {
-                method: 'GET',
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to seed data');
-            }
-
-            const data = await response.json();
-            toast.success('Sample data created successfully');
-            console.log('Seed result:', data);
-
-            // Refresh schedules after seeding
-            fetchSchedules();
-        } catch (error) {
-            console.error('Error seeding database:', error);
-            toast.error('Failed to create sample data');
-        }
-    };
-
     return (
         <div className="p-6 space-y-6 w-full relative">
             <div className="flex justify-between items-center">
                 <h1 className="text-3xl font-bold">Schedules</h1>
                 <div className="flex gap-2">
-                    <Button variant="outline" onClick={seedSampleData}>
-                        <Calendar className="mr-2 h-4 w-4" />
-                        Seed Sample Data
-                    </Button>
                     <Link href="/dashboard/schedules/new">
                         <Button>
                             <PlusCircle className="mr-2 h-4 w-4" />
