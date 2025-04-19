@@ -14,6 +14,7 @@ model User {
   lastName         String?
   username         String?   @unique
   email            String?   @unique
+  emailVerified    DateTime?
   profileImageUrl  String?
   imageUrl         String?
   birthday         String?
@@ -29,6 +30,7 @@ model User {
   privateMetadata  Json?     @default("{}")
   unsafeMetadata   Json?     @default("{}")
   permissions      UserPermission[]
+  schedules        Schedule[]
 }
 
 // Permission and UserPermission models for role-based access control
@@ -43,15 +45,15 @@ model Permission {
 }
 
 model UserPermission {
+  id           String     @id @default(cuid())
   userId       String
   permissionId String
   user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
   createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
 
-  @@id([userId, permissionId])
-  @@index([userId])
-  @@index([permissionId])
+  @@unique([userId, permissionId])
 }
 
 // Inventory Management System Models
@@ -89,6 +91,7 @@ model Room {
   assets      Asset[]
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
+  schedules   Schedule[]
 
   @@unique([floorId, number]) // Ensure room numbers are unique within a floor
 }
@@ -174,4 +177,20 @@ model DeploymentRecord {
   remarks       String?
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
+}
+
+// New model for Schedule
+model Schedule {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  startTime   DateTime
+  endTime     DateTime
+  dayOfWeek   String    // "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"
+  userId      String
+  roomId      String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  room        Room      @relation(fields: [roomId], references: [id])
 }

@@ -9,13 +9,12 @@ export async function GET(req: NextRequest) {
         const buildingId = searchParams.get('buildingId');
 
         // Build where clause based on filters
-        let whereClause = {};
+        let whereClause: any = {};
 
         if (buildingId) {
-            whereClause = { buildingId };
+            whereClause.buildingId = buildingId;
         }
 
-        // Get all floors with their building
         const floors = await prisma.floor.findMany({
             where: whereClause,
             include: {
@@ -31,7 +30,7 @@ export async function GET(req: NextRequest) {
     } catch (error) {
         console.error('Error fetching floors:', error);
         return NextResponse.json(
-            { error: 'Failed to fetch floors', details: String(error) },
+            { error: 'Failed to fetch floors' },
             { status: 500 }
         );
     }
@@ -62,11 +61,25 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // Create the floor
+        // Check if floor number already exists in this building
+        const existingFloor = await prisma.floor.findFirst({
+            where: {
+                buildingId,
+                number: Number(number)
+            }
+        });
+
+        if (existingFloor) {
+            return NextResponse.json(
+                { error: 'A floor with this number already exists in this building' },
+                { status: 409 }
+            );
+        }
+
         const floor = await prisma.floor.create({
             data: {
-                number,
-                name: name || null,
+                number: Number(number),
+                name,
                 buildingId
             },
             include: {
@@ -78,7 +91,7 @@ export async function POST(req: NextRequest) {
     } catch (error) {
         console.error('Error creating floor:', error);
         return NextResponse.json(
-            { error: 'Failed to create floor', details: String(error) },
+            { error: 'Failed to create floor' },
             { status: 500 }
         );
     }

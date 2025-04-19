@@ -1,15 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-// GET a specific room
+// GET a single room by ID
 export async function GET(
     req: NextRequest,
     { params }: { params: { id: string } }
 ) {
     try {
-        const id = params.id;
+        const { id } = params;
 
-        // Fetch room with floor and building details
         const room = await prisma.room.findUnique({
             where: { id },
             include: {
@@ -28,11 +27,27 @@ export async function GET(
             );
         }
 
-        return NextResponse.json(room);
+        // Generate QR code data URL
+        const roomData = {
+            id: room.id,
+            name: room.name,
+            number: room.number,
+            floor: room.floor.number,
+            building: room.floor.building.name
+        };
+
+        // For demo purposes, we'll add a placeholder QR code value
+        // In a real app, you'd generate a proper QR code
+        const qrCode = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(JSON.stringify(roomData))}`;
+
+        return NextResponse.json({
+            ...room,
+            qrCode
+        });
     } catch (error) {
         console.error('Error fetching room:', error);
         return NextResponse.json(
-            { error: 'An error occurred while fetching the room', details: String(error) },
+            { error: 'Failed to fetch room' },
             { status: 500 }
         );
     }

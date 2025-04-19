@@ -12,18 +12,13 @@ const userUpdateSchema = z.object({
     profileImageUrl: z.string().url().optional().nullable(),
 });
 
-// GET user by id
+// GET a single user by ID
 export async function GET(
     req: NextRequest,
     { params }: { params: { id: string } }
 ) {
     try {
         const { id } = params;
-
-        // Check if prisma client is available
-        if (!prisma || !prisma.user) {
-            throw new Error("Prisma client is not properly initialized");
-        }
 
         const user = await prisma.user.findUnique({
             where: { id },
@@ -32,7 +27,8 @@ export async function GET(
                     include: {
                         permission: true
                     }
-                }
+                },
+                schedules: true
             }
         });
 
@@ -45,16 +41,16 @@ export async function GET(
 
         return NextResponse.json(user);
     } catch (error) {
-        console.error(`Error fetching user ${params.id}:`, error);
+        console.error('Error fetching user:', error);
         return NextResponse.json(
-            { error: 'Failed to fetch user', details: error instanceof Error ? error.message : String(error) },
+            { error: 'Failed to fetch user' },
             { status: 500 }
         );
     }
 }
 
-// PUT update user
-export async function PUT(
+// PATCH update a user
+export async function PATCH(
     req: NextRequest,
     { params }: { params: { id: string } }
 ) {
@@ -62,9 +58,16 @@ export async function PUT(
         const { id } = params;
         const body = await req.json();
 
-        // Check if prisma client is available
-        if (!prisma || !prisma.user) {
-            throw new Error("Prisma client is not properly initialized");
+        // Check if user exists
+        const userExists = await prisma.user.findUnique({
+            where: { id }
+        });
+
+        if (!userExists) {
+            return NextResponse.json(
+                { error: 'User not found' },
+                { status: 404 }
+            );
         }
 
         // Validate input
@@ -78,51 +81,57 @@ export async function PUT(
 
         const { data } = result;
 
-        // Check if user exists
-        const existingUser = await prisma.user.findUnique({
-            where: { id }
-        });
+        // Check uniqueness of username if it's being updated
+        if (data.username && data.username !== userExists.username) {
+            const existingUser = await prisma.user.findFirst({
+                where: {
+                    username: data.username,
+                    id: { not: id }
+                }
+            });
 
-        if (!existingUser) {
-            return NextResponse.json(
-                { error: 'User not found' },
-                { status: 404 }
-            );
+            if (existingUser) {
+                return NextResponse.json(
+                    { error: 'Username already taken' },
+                    { status: 409 }
+                );
+            }
         }
 
-        // Update user
+        // Check uniqueness of email if it's being updated
+        if (data.email && data.email !== userExists.email) {
+            const existingUser = await prisma.user.findFirst({
+                where: {
+                    email: data.email,
+                    id: { not: id }
+                }
+            });
+
+            if (existingUser) {
+                return NextResponse.json(
+                    { error: 'Email already taken' },
+                    { status: 409 }
+                );
+            }
+        }
+
+        // Update the user
         const updatedUser = await prisma.user.update({
             where: { id },
-            data,
-            include: {
-                permissions: {
-                    include: {
-                        permission: true
-                    }
-                }
-            }
+            data
         });
 
         return NextResponse.json(updatedUser);
     } catch (error) {
-        console.error(`Error updating user ${params.id}:`, error);
-
-        // Handle duplicate key errors
-        if (error instanceof Error && error.message.includes('Unique constraint failed')) {
-            return NextResponse.json(
-                { error: 'Username or email already in use' },
-                { status: 409 }
-            );
-        }
-
+        console.error('Error updating user:', error);
         return NextResponse.json(
-            { error: 'Failed to update user', details: error instanceof Error ? error.message : String(error) },
+            { error: 'Failed to update user' },
             { status: 500 }
         );
     }
 }
 
-// DELETE user
+// DELETE a user
 export async function DELETE(
     req: NextRequest,
     { params }: { params: { id: string } }
@@ -130,36 +139,29 @@ export async function DELETE(
     try {
         const { id } = params;
 
-        // Check if prisma client is available
-        if (!prisma || !prisma.user) {
-            throw new Error("Prisma client is not properly initialized");
-        }
-
         // Check if user exists
-        const existingUser = await prisma.user.findUnique({
+        const userExists = await prisma.user.findUnique({
             where: { id }
         });
 
-        if (!existingUser) {
+        if (!userExists) {
             return NextResponse.json(
                 { error: 'User not found' },
                 { status: 404 }
             );
         }
 
-        // Delete user
+        // Delete the user
         await prisma.user.delete({
             where: { id }
         });
 
-        return NextResponse.json(
-            { message: 'User deleted successfully' },
-            { status: 200 }
-        );
+        return NextResponse.json({ message: 'User deleted successfully' });
+
     } catch (error) {
-        console.error(`Error deleting user ${params.id}:`, error);
+        console.error('Error deleting user:', error);
         return NextResponse.json(
-            { error: 'Failed to delete user', details: error instanceof Error ? error.message : String(error) },
+            { error: 'Failed to delete user' },
             { status: 500 }
         );
     }

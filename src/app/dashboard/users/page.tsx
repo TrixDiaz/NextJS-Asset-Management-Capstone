@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { UserPlus, Trash2, Pencil, Download, ChevronDown, FilterX, FileDown } from 'lucide-react';
+import { UserPlus, Trash2, Pencil, Download, ChevronDown, FilterX, FileDown, MoreHorizontal, Calendar } from 'lucide-react';
 import Link from 'next/link';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -13,6 +13,8 @@ import {
     DropdownMenuCheckboxItem,
     DropdownMenuContent,
     DropdownMenuTrigger,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import {
     AlertDialog,
@@ -31,6 +33,16 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
 
 interface User {
     id: string;
@@ -60,6 +72,7 @@ export default function UsersPage() {
         email: true,
         role: true,
         createdAt: true,
+        actions: true,
     });
     const [ pageIndex, setPageIndex ] = useState(0);
     const [ pageSize, setPageSize ] = useState(10);
@@ -68,6 +81,20 @@ export default function UsersPage() {
     const [ showDeleteDialog, setShowDeleteDialog ] = useState(false);
     const [ showRoleDialog, setShowRoleDialog ] = useState(false);
     const [ newRoleValue, setNewRoleValue ] = useState<string>("user");
+
+    // Add state for individual user operations
+    const [ userToEdit, setUserToEdit ] = useState<User | null>(null);
+    const [ showEditDialog, setShowEditDialog ] = useState(false);
+    const [ showDeleteUserDialog, setShowDeleteUserDialog ] = useState(false);
+    const [ userToDelete, setUserToDelete ] = useState<string | null>(null);
+
+    // Form state for editing user
+    const [ editFormData, setEditFormData ] = useState({
+        firstName: '',
+        lastName: '',
+        username: '',
+        role: ''
+    });
 
     // Calculate selected count
     const selectedCount = Object.values(selectedUsers).filter(Boolean).length;
@@ -250,6 +277,7 @@ export default function UsersPage() {
             setUsers(data);
             setSelectedUsers({});
             setShowDeleteDialog(false);
+            toast.success(`Successfully deleted ${selectedUserIds.length} users`);
 
             // Reset to first page if current page is now empty
             if (pageIndex > 0 && pageIndex >= Math.ceil(data.length / pageSize)) {
@@ -257,6 +285,7 @@ export default function UsersPage() {
             }
         } catch (error) {
             console.error("Error deleting users:", error);
+            toast.error("Failed to delete users");
         }
     };
 
@@ -292,6 +321,7 @@ export default function UsersPage() {
             setShowRoleDialog(false);
         } catch (error) {
             console.error("Error updating users:", error);
+            toast.error("Failed to update users");
         }
     };
 
@@ -342,6 +372,7 @@ export default function UsersPage() {
             document.body.removeChild(link);
         } catch (error) {
             console.error("Error exporting users:", error);
+            toast.error("Failed to export users");
         }
     };
 
@@ -367,6 +398,101 @@ export default function UsersPage() {
                 ? prev.filter(r => r !== role)
                 : [ ...prev, role ]
         );
+    };
+
+    // Add individual user edit handler
+    const handleEditUser = (user: User) => {
+        setUserToEdit(user);
+        setShowEditDialog(true);
+    };
+
+    // Add individual user delete handler
+    const handleDeleteUser = (userId: string) => {
+        setUserToDelete(userId);
+        setShowDeleteUserDialog(true);
+    };
+
+    // Add individual user delete confirmation
+    const confirmDeleteUser = async () => {
+        if (!userToDelete) return;
+
+        try {
+            const response = await fetch(`/api/users/${userToDelete}`, {
+                method: "DELETE"
+            });
+
+            if (!response.ok) {
+                throw new Error("Failed to delete user");
+            }
+
+            // Refresh the data
+            const refreshResponse = await fetch('/api/users');
+            if (!refreshResponse.ok) throw new Error('Failed to fetch users');
+            const data = await refreshResponse.json();
+            setUsers(data);
+            setUserToDelete(null);
+            setShowDeleteUserDialog(false);
+            toast.success("User deleted successfully");
+        } catch (error) {
+            console.error("Error deleting user:", error);
+            toast.error("Failed to delete user");
+        }
+    };
+
+    // Update edit form when a user is selected for editing
+    useEffect(() => {
+        if (userToEdit) {
+            setEditFormData({
+                firstName: userToEdit.firstName || '',
+                lastName: userToEdit.lastName || '',
+                username: userToEdit.username || '',
+                role: userToEdit.role || 'user'
+            });
+        }
+    }, [ userToEdit ]);
+
+    // Handle input changes in the edit form
+    const handleEditFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = e.target;
+        setEditFormData(prev => ({
+            ...prev,
+            [ name ]: value
+        }));
+    };
+
+    // Handle edit form submission
+    const handleEditFormSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+
+        if (!userToEdit) return;
+
+        try {
+            const response = await fetch(`/api/users/${userToEdit.id}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(editFormData),
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to update user');
+            }
+
+            // Refresh the data
+            const refreshResponse = await fetch('/api/users');
+            if (!refreshResponse.ok) throw new Error('Failed to fetch users');
+            const data = await refreshResponse.json();
+            setUsers(data);
+
+            // Close the dialog and reset state
+            setUserToEdit(null);
+            setShowEditDialog(false);
+            toast.success("User updated successfully");
+        } catch (error) {
+            console.error('Error updating user:', error);
+            toast.error("Failed to update user");
+        }
     };
 
     return (
@@ -584,6 +710,9 @@ export default function UsersPage() {
                                                 </Button>
                                             </TableHead>
                                         )}
+                                        {visibleColumns.actions && (
+                                            <TableHead className="w-[80px]">Actions</TableHead>
+                                        )}
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -626,6 +755,38 @@ export default function UsersPage() {
                                                 )}
                                                 {visibleColumns.createdAt && (
                                                     <TableCell>{new Date(user.createdAt).toLocaleDateString()}</TableCell>
+                                                )}
+                                                {visibleColumns.actions && (
+                                                    <TableCell>
+                                                        <DropdownMenu>
+                                                            <DropdownMenuTrigger asChild>
+                                                                <Button variant="ghost" className="h-8 w-8 p-0">
+                                                                    <span className="sr-only">Open menu</span>
+                                                                    <MoreHorizontal className="h-4 w-4" />
+                                                                </Button>
+                                                            </DropdownMenuTrigger>
+                                                            <DropdownMenuContent align="end">
+                                                                <DropdownMenuItem onClick={() => handleEditUser(user)}>
+                                                                    <Pencil className="mr-2 h-4 w-4" />
+                                                                    Edit
+                                                                </DropdownMenuItem>
+                                                                <DropdownMenuItem asChild>
+                                                                    <Link href={`/dashboard/users/${user.id}/schedules`}>
+                                                                        <Calendar className="mr-2 h-4 w-4" />
+                                                                        Schedules
+                                                                    </Link>
+                                                                </DropdownMenuItem>
+                                                                <DropdownMenuSeparator />
+                                                                <DropdownMenuItem
+                                                                    onClick={() => handleDeleteUser(user.id)}
+                                                                    className="text-destructive focus:text-destructive"
+                                                                >
+                                                                    <Trash2 className="mr-2 h-4 w-4" />
+                                                                    Delete
+                                                                </DropdownMenuItem>
+                                                            </DropdownMenuContent>
+                                                        </DropdownMenu>
+                                                    </TableCell>
                                                 )}
                                             </TableRow>
                                         ))
@@ -797,6 +958,104 @@ export default function UsersPage() {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+
+            {/* Delete Single User Dialog */}
+            <AlertDialog open={showDeleteUserDialog} onOpenChange={setShowDeleteUserDialog}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete User</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to delete this user? This action cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={confirmDeleteUser}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                            Delete
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            {/* Edit User Dialog */}
+            <Dialog open={showEditDialog} onOpenChange={(open) => {
+                setShowEditDialog(open);
+                if (!open) setUserToEdit(null);
+            }}>
+                <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle>Edit User</DialogTitle>
+                        <DialogDescription>
+                            Make changes to the user&apos;s information.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleEditFormSubmit}>
+                        <div className="grid gap-4 py-4">
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="firstName" className="text-right">
+                                    First Name
+                                </Label>
+                                <Input
+                                    id="firstName"
+                                    name="firstName"
+                                    value={editFormData.firstName}
+                                    onChange={handleEditFormChange}
+                                    className="col-span-3"
+                                />
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="lastName" className="text-right">
+                                    Last Name
+                                </Label>
+                                <Input
+                                    id="lastName"
+                                    name="lastName"
+                                    value={editFormData.lastName}
+                                    onChange={handleEditFormChange}
+                                    className="col-span-3"
+                                />
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="username" className="text-right">
+                                    Username
+                                </Label>
+                                <Input
+                                    id="username"
+                                    name="username"
+                                    value={editFormData.username}
+                                    onChange={handleEditFormChange}
+                                    className="col-span-3"
+                                />
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="role" className="text-right">
+                                    Role
+                                </Label>
+                                <Select
+                                    value={editFormData.role}
+                                    onValueChange={(value) => setEditFormData(prev => ({ ...prev, role: value }))}
+                                >
+                                    <SelectTrigger className="col-span-3">
+                                        <SelectValue placeholder="Select a role" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="admin">Admin</SelectItem>
+                                        <SelectItem value="manager">Manager</SelectItem>
+                                        <SelectItem value="user">User</SelectItem>
+                                        <SelectItem value="guest">Guest</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <Button type="submit">Save changes</Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 } 

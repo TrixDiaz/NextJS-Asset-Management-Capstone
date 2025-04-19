@@ -4,15 +4,8 @@ import { prisma } from '@/lib/prisma';
 // GET all buildings
 export async function GET(req: NextRequest) {
     try {
-        // @ts-ignore - Using type assertion to bypass TypeScript error
-        const buildings = await (prisma.building as any).findMany({
-            include: {
-                floors: {
-                    include: {
-                        rooms: true
-                    }
-                }
-            }
+        const buildings = await prisma.building.findMany({
+            orderBy: { name: 'asc' }
         });
 
         return NextResponse.json(buildings);
@@ -38,8 +31,19 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // @ts-ignore - Using type assertion to bypass TypeScript error
-        const building = await (prisma.building as any).create({
+        // Check if building name already exists
+        const existingBuilding = await prisma.building.findFirst({
+            where: { name }
+        });
+
+        if (existingBuilding) {
+            return NextResponse.json(
+                { error: 'A building with this name already exists' },
+                { status: 409 }
+            );
+        }
+
+        const building = await prisma.building.create({
             data: {
                 name,
                 code,
