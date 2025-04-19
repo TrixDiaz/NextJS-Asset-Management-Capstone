@@ -6,13 +6,13 @@ import { prisma } from '@/lib/prisma';
 import { notFound } from 'next/navigation';
 
 interface EditStorageItemPageProps {
-    params: {
+    params: Promise<{
         id: string;
-    };
+    }>;
 }
 
 export default async function EditStorageItemPage({ params }: EditStorageItemPageProps) {
-    const { id } = params;
+    const { id } = await params;
 
     try {
         // Fetch storage item details for pre-filling the form

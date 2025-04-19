@@ -1,7 +1,7 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 type BreadcrumbItem = {
   title: string;
@@ -26,10 +26,13 @@ const routeMapping: Record<string, BreadcrumbItem[]> = {
   // Add more custom mappings as needed
 };
 
+// Helper function to safely check if we're in a browser environment
+const isBrowser = () => typeof window !== 'undefined';
+
 // Helper function to get entity details from localStorage
 const getEntityNameFromStorage = (type: string, id: string): string | null => {
   try {
-    if (typeof window === 'undefined') return null;
+    if (!isBrowser()) return null;
 
     const storageKey = `${type}_${id}`;
     return localStorage.getItem(storageKey);
@@ -42,7 +45,7 @@ const getEntityNameFromStorage = (type: string, id: string): string | null => {
 // Helper function to set entity details in localStorage
 export const setEntityNameInStorage = (type: string, id: string, name: string): void => {
   try {
-    if (typeof window === 'undefined') return;
+    if (!isBrowser()) return;
 
     const storageKey = `${type}_${id}`;
     localStorage.setItem(storageKey, name);
@@ -54,8 +57,17 @@ export const setEntityNameInStorage = (type: string, id: string, name: string): 
 export function useBreadcrumbs() {
   const pathname = usePathname();
   const [ breadcrumbs, setBreadcrumbs ] = useState<BreadcrumbItem[]>([]);
+  const [ isClient, setIsClient ] = useState(false);
+
+  // Set isClient to true on mount
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   useEffect(() => {
+    // Skip running this effect during SSR or when pathname is not available
+    if (!isClient || !pathname) return;
+
     const generateBreadcrumbs = async () => {
       // Check if we have a custom mapping for this exact path
       if (routeMapping[ pathname ]) {
@@ -101,6 +113,13 @@ export function useBreadcrumbs() {
             title: roomName || `Room (${segment})`,
             link: path
           });
+        } else if (prevSegment === 'storage' && i === segments.length - 1) {
+          // This is a storage item ID
+          const itemName = getEntityNameFromStorage('storage', segment);
+          newBreadcrumbs.push({
+            title: itemName || `Item (${segment})`,
+            link: path
+          });
         } else {
           // Regular segment
           const title = segment.charAt(0).toUpperCase() + segment.slice(1);
@@ -112,7 +131,7 @@ export function useBreadcrumbs() {
     };
 
     generateBreadcrumbs();
-  }, [ pathname ]);
+  }, [ pathname, isClient ]);
 
   return breadcrumbs;
 }

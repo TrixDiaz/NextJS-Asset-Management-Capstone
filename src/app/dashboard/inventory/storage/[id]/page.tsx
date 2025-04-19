@@ -12,11 +12,12 @@ import {
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { formatDistance } from 'date-fns';
+import { setEntityNameInStorage } from '@/hooks/use-breadcrumbs';
 
 interface StorageItemDetailPageProps {
-    params: {
+    params: Promise<{
         id: string;
-    };
+    }>;
 }
 
 type StorageItem = {
@@ -43,6 +44,15 @@ type StorageItem = {
 
 // Content component to avoid React.use in async function error
 function StorageItemContent({ storageItem, id }: { storageItem: StorageItem, id: string }) {
+    // Store the storage item name in localStorage for breadcrumbs
+    React.useEffect(() => {
+        // Only run this on the client
+        if (typeof window !== 'undefined') {
+            const itemName = storageItem.name;
+            setEntityNameInStorage('storage', id, itemName);
+        }
+    }, [ storageItem, id ]);
+
     return (
         <div className="container p-6">
             <div className="flex items-center mb-4">
@@ -184,7 +194,7 @@ function StorageItemContent({ storageItem, id }: { storageItem: StorageItem, id:
 }
 
 export default async function StorageItemDetailPage({ params }: StorageItemDetailPageProps) {
-    const id = params.id;
+    const { id } = await params;
 
     try {
         // Fetch storage item with deployment history

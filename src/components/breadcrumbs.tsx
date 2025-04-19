@@ -9,11 +9,19 @@ import {
 } from '@/components/ui/breadcrumb';
 import { useBreadcrumbs } from '@/hooks/use-breadcrumbs';
 import { IconSlash } from '@tabler/icons-react';
-import { Fragment } from 'react';
+import { Fragment, useState, useEffect } from 'react';
 
 export function Breadcrumbs() {
   const items = useBreadcrumbs();
-  if (items.length === 0) return null;
+  const [ mounted, setMounted ] = useState(false);
+
+  // Only render on client to prevent hydration mismatch
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Return null during server-side rendering and initial mount
+  if (!mounted || items.length === 0) return null;
 
   return (
     <Breadcrumb>

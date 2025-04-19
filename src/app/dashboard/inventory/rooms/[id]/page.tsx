@@ -14,6 +14,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { useState, useEffect } from 'react';
+import React from 'react';
 import {
     Dialog,
     DialogContent,
@@ -26,9 +27,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { setEntityNameInStorage } from '@/hooks/use-breadcrumbs';
 
 interface RoomDetailPageProps {
-    params: {
+    params: Promise<{
         id: string;
-    };
+    }>;
 }
 
 interface DeploymentItem {
@@ -79,13 +80,15 @@ interface Schedule {
 }
 
 export default function RoomDetailPage({ params }: RoomDetailPageProps) {
+    // Unwrap params using React.use()
+    const unwrappedParams = React.use(params);
     const [ room, setRoom ] = useState<Room | null>(null);
     const [ deploymentsByItem, setDeploymentsByItem ] = useState<Record<string, DeploymentItem>>({});
     const [ schedules, setSchedules ] = useState<Schedule[]>([]);
     const [ loading, setLoading ] = useState(true);
     const [ qrCode, setQrCode ] = useState<string>('');
     const [ showQrDialog, setShowQrDialog ] = useState(false);
-    const id = params.id;
+    const id = unwrappedParams.id;
 
     // Helper function to get day name in proper case
     const formatDayOfWeek = (day: string) => {
