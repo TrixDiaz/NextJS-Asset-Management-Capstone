@@ -6,6 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Download } from 'lucide-react';
 
 // Mock data for demonstration - would be replaced with actual data from your API/database
 const storageItemsByType = [
@@ -37,6 +39,13 @@ const lowStockItems = [
     { id: '3', name: 'USB Flash Drives', type: 'HARDWARE', quantity: 7, threshold: 15 },
     { id: '4', name: 'Network Switches', type: 'HARDWARE', quantity: 1, threshold: 3 },
     { id: '5', name: 'Office Paper', type: 'OFFICE_SUPPLIES', quantity: 10, threshold: 20 },
+    { id: '6', name: 'Mouse', type: 'PERIPHERALS', quantity: 8, threshold: 20 },
+    { id: '7', name: 'Keyboard', type: 'PERIPHERALS', quantity: 5, threshold: 15 },
+    { id: '8', name: 'VGA Cable', type: 'CABLE', quantity: 3, threshold: 8 },
+    { id: '9', name: 'Power Supply', type: 'HARDWARE', quantity: 2, threshold: 5 },
+    { id: '10', name: 'Network Cable', type: 'CABLE', quantity: 12, threshold: 25 },
+    { id: '11', name: 'Staplers', type: 'OFFICE_SUPPLIES', quantity: 6, threshold: 15 },
+    { id: '12', name: 'Monitors', type: 'HARDWARE', quantity: 4, threshold: 10 },
 ];
 
 const topDeployedItems = [
@@ -75,21 +84,115 @@ const topDeployedItems = [
         totalDeployed: 65,
         lastDeployed: '2023-09-30',
     },
+    {
+        id: '6',
+        name: 'Power Supply',
+        type: 'HARDWARE',
+        totalDeployed: 55,
+        lastDeployed: '2023-09-25',
+    },
+    {
+        id: '7',
+        name: 'Network Cable',
+        type: 'CABLE',
+        totalDeployed: 78,
+        lastDeployed: '2023-10-02',
+    },
+    {
+        id: '8',
+        name: 'USB Flash Drive',
+        type: 'HARDWARE',
+        totalDeployed: 110,
+        lastDeployed: '2023-10-05',
+    },
 ];
 
 export default function StorageReports() {
+    // Function to export data as CSV
+    const exportToCsv = (data: any[], filename: string) => {
+        // Create column headers
+        const headers = Object.keys(data[ 0 ]).filter(key => key !== 'id');
+
+        // Convert data to CSV format
+        const csvContent = [
+            headers.join(','),
+            ...data.map(row =>
+                headers.map(header =>
+                    typeof row[ header ] === 'string' && row[ header ].includes(',')
+                        ? `"${row[ header ]}"`
+                        : row[ header ]
+                ).join(',')
+            )
+        ].join('\n');
+
+        // Create and download the file
+        const blob = new Blob([ csvContent ], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.setAttribute('href', url);
+        link.setAttribute('download', `${filename}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    // Function to export chart as image
+    const exportChartAsImage = (chartId: string, filename: string) => {
+        const chartElement = document.getElementById(chartId);
+        if (!chartElement) return;
+
+        // Get SVG element
+        const svgElement = chartElement.querySelector('svg');
+        if (!svgElement) return;
+
+        // Create a canvas element
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        // Set canvas dimensions
+        const svgRect = svgElement.getBoundingClientRect();
+        canvas.width = svgRect.width;
+        canvas.height = svgRect.height;
+
+        // Create image from SVG
+        const svgData = new XMLSerializer().serializeToString(svgElement);
+        const img = new Image();
+        img.onload = () => {
+            ctx.drawImage(img, 0, 0);
+            // Download the image
+            const link = document.createElement('a');
+            link.download = `${filename}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        };
+        img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+    };
+
     return (
         <div className="space-y-6">
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                {/* Storage Item Type Distribution */}
-                <Card>
-                    <CardHeader>
+            {/* Storage Item Type Distribution */}
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between">
+                    <div>
                         <CardTitle>Storage Items by Type</CardTitle>
                         <CardDescription>Distribution of items in storage by category</CardDescription>
-                    </CardHeader>
-                    <CardContent>
+                    </div>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="ml-auto flex items-center gap-1"
+                        onClick={() => exportToCsv(storageItemsByType, 'storage-item-types')}
+                    >
+                        <Download className="h-4 w-4" />
+                        <span>Export Data</span>
+                    </Button>
+                </CardHeader>
+                <CardContent className="flex justify-center items-center">
+                    <div id="storage-type-chart" className="w-full max-w-2xl">
                         <ChartContainer
-                            className="h-80"
+                            className="h-96"
                             config={{
                                 CABLE: { color: '#2563eb' },
                                 SOFTWARE: { color: '#16a34a' },
@@ -105,7 +208,7 @@ export default function StorageReports() {
                                     nameKey="name"
                                     cx="50%"
                                     cy="50%"
-                                    outerRadius={80}
+                                    outerRadius={120}
                                     label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
                                 />
                                 <ChartTooltip
@@ -121,18 +224,41 @@ export default function StorageReports() {
                                 <Recharts.Legend />
                             </Recharts.PieChart>
                         </ChartContainer>
-                    </CardContent>
-                </Card>
+                        <div className="flex justify-center mt-4">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => exportChartAsImage('storage-type-chart', 'storage-items-by-type')}
+                            >
+                                <Download className="h-4 w-4 mr-2" />
+                                Export Chart
+                            </Button>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
 
-                {/* Stock Trends */}
-                <Card>
-                    <CardHeader>
+            {/* Stock Trends */}
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between">
+                    <div>
                         <CardTitle>Inventory Movement Trends</CardTitle>
                         <CardDescription>Monthly incoming and outgoing inventory</CardDescription>
-                    </CardHeader>
-                    <CardContent>
+                    </div>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="ml-auto flex items-center gap-1"
+                        onClick={() => exportToCsv(stockTrends, 'inventory-movement-data')}
+                    >
+                        <Download className="h-4 w-4" />
+                        <span>Export Data</span>
+                    </Button>
+                </CardHeader>
+                <CardContent className="flex justify-center items-center">
+                    <div id="inventory-trend-chart" className="w-full max-w-3xl">
                         <ChartContainer
-                            className="h-80"
+                            className="h-96"
                             config={{
                                 incoming: { color: '#2563eb' },
                                 outgoing: { color: '#dc2626' },
@@ -154,6 +280,7 @@ export default function StorageReports() {
                                     stroke="#2563eb"
                                     activeDot={{ r: 8 }}
                                     name="Incoming"
+                                    strokeWidth={2}
                                 />
                                 <Recharts.Line
                                     type="monotone"
@@ -161,77 +288,114 @@ export default function StorageReports() {
                                     stroke="#dc2626"
                                     activeDot={{ r: 8 }}
                                     name="Outgoing"
+                                    strokeWidth={2}
                                 />
                             </Recharts.LineChart>
                         </ChartContainer>
-                    </CardContent>
-                </Card>
-            </div>
+                        <div className="flex justify-center mt-4">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => exportChartAsImage('inventory-trend-chart', 'inventory-movement-trends')}
+                            >
+                                <Download className="h-4 w-4 mr-2" />
+                                Export Chart
+                            </Button>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
 
             {/* Low Stock Items */}
             <Card>
-                <CardHeader>
-                    <CardTitle>Low Stock Alert</CardTitle>
-                    <CardDescription>Items with stock levels below threshold</CardDescription>
+                <CardHeader className="flex flex-row items-center justify-between">
+                    <div>
+                        <CardTitle>Low Stock Alert</CardTitle>
+                        <CardDescription>Items with stock levels below threshold</CardDescription>
+                    </div>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="ml-auto flex items-center gap-1"
+                        onClick={() => exportToCsv(lowStockItems, 'low-stock-items')}
+                    >
+                        <Download className="h-4 w-4" />
+                        <span>Export</span>
+                    </Button>
                 </CardHeader>
                 <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Item Name</TableHead>
-                                <TableHead>Category</TableHead>
-                                <TableHead>Current Quantity</TableHead>
-                                <TableHead>Threshold</TableHead>
-                                <TableHead>Status</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {lowStockItems.map((item) => (
-                                <TableRow key={item.id}>
-                                    <TableCell className="font-medium">{item.name}</TableCell>
-                                    <TableCell>{item.type}</TableCell>
-                                    <TableCell>{item.quantity}</TableCell>
-                                    <TableCell>{item.threshold}</TableCell>
-                                    <TableCell>
-                                        {item.quantity <= item.threshold / 2
-                                            ? <Badge className="bg-red-500">Critical</Badge>
-                                            : <Badge className="bg-yellow-500">Low</Badge>
-                                        }
-                                    </TableCell>
+                    <div className="rounded-md border overflow-auto max-h-[400px]">
+                        <Table>
+                            <TableHeader className="sticky top-0 bg-background z-10">
+                                <TableRow>
+                                    <TableHead>Item Name</TableHead>
+                                    <TableHead>Category</TableHead>
+                                    <TableHead>Current Quantity</TableHead>
+                                    <TableHead>Threshold</TableHead>
+                                    <TableHead>Status</TableHead>
                                 </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
+                            </TableHeader>
+                            <TableBody>
+                                {lowStockItems.map((item) => (
+                                    <TableRow key={item.id}>
+                                        <TableCell className="font-medium">{item.name}</TableCell>
+                                        <TableCell>{item.type}</TableCell>
+                                        <TableCell>{item.quantity}</TableCell>
+                                        <TableCell>{item.threshold}</TableCell>
+                                        <TableCell>
+                                            {item.quantity <= item.threshold / 2
+                                                ? <Badge className="bg-red-500">Critical</Badge>
+                                                : <Badge className="bg-yellow-500">Low</Badge>
+                                            }
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </div>
                 </CardContent>
             </Card>
 
             {/* Top Deployed Items */}
             <Card>
-                <CardHeader>
-                    <CardTitle>Most Deployed Items</CardTitle>
-                    <CardDescription>Items with highest deployment frequency</CardDescription>
+                <CardHeader className="flex flex-row items-center justify-between">
+                    <div>
+                        <CardTitle>Most Deployed Items</CardTitle>
+                        <CardDescription>Items with highest deployment frequency</CardDescription>
+                    </div>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="ml-auto flex items-center gap-1"
+                        onClick={() => exportToCsv(topDeployedItems, 'top-deployed-items')}
+                    >
+                        <Download className="h-4 w-4" />
+                        <span>Export</span>
+                    </Button>
                 </CardHeader>
                 <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Item Name</TableHead>
-                                <TableHead>Category</TableHead>
-                                <TableHead>Total Deployed</TableHead>
-                                <TableHead>Last Deployed</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {topDeployedItems.map((item) => (
-                                <TableRow key={item.id}>
-                                    <TableCell className="font-medium">{item.name}</TableCell>
-                                    <TableCell>{item.type}</TableCell>
-                                    <TableCell>{item.totalDeployed} units</TableCell>
-                                    <TableCell>{item.lastDeployed}</TableCell>
+                    <div className="rounded-md border overflow-auto max-h-[400px]">
+                        <Table>
+                            <TableHeader className="sticky top-0 bg-background z-10">
+                                <TableRow>
+                                    <TableHead>Item Name</TableHead>
+                                    <TableHead>Category</TableHead>
+                                    <TableHead>Total Deployed</TableHead>
+                                    <TableHead>Last Deployed</TableHead>
                                 </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
+                            </TableHeader>
+                            <TableBody>
+                                {topDeployedItems.map((item) => (
+                                    <TableRow key={item.id}>
+                                        <TableCell className="font-medium">{item.name}</TableCell>
+                                        <TableCell>{item.type}</TableCell>
+                                        <TableCell>{item.totalDeployed} units</TableCell>
+                                        <TableCell>{item.lastDeployed}</TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </div>
                 </CardContent>
             </Card>
         </div>
