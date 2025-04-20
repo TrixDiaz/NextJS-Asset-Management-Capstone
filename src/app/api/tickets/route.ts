@@ -1,159 +1,156 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { z } from 'zod';
+import { db } from '@/lib/db';
 
 // Schema validation for ticket creation
 const ticketCreateSchema = z.object({
-    title: z.string().min(1, 'Title is required'),
-    description: z.string().min(1, 'Description is required'),
-    priority: z.enum([ 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL' ]),
-    assetId: z.string().optional(),
-    roomId: z.string().optional(),
+  title: z.string().min(1, 'Title is required'),
+  description: z.string().min(1, 'Description is required'),
+  priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']),
+  assetId: z.string().optional(),
+  roomId: z.string().optional()
 });
-
-// Mock tickets data for development
-const mockTickets = [
-    {
-        id: '1',
-        title: 'Computer not working in Room 302',
-        description: 'The desktop computer in Room 302 won\'t turn on. It was working yesterday.',
-        status: 'OPEN',
-        priority: 'HIGH',
-        createdAt: new Date().toISOString(),
-        asset: {
-            id: 'a1',
-            assetTag: 'PC-302-01',
-            assetType: 'COMPUTER'
-        },
-        room: {
-            id: 'r1',
-            number: '302',
-            name: 'Computer Lab',
-            floor: {
-                number: 3,
-                building: {
-                    name: 'Main Building'
-                }
-            }
-        },
-        attachments: []
-    },
-    {
-        id: '2',
-        title: 'Projector display has color issues',
-        description: 'The projector in Room 201 is showing everything with a green tint.',
-        status: 'IN_PROGRESS',
-        priority: 'MEDIUM',
-        createdAt: new Date(Date.now() - 86400000).toISOString(),
-        asset: {
-            id: 'a2',
-            assetTag: 'PRJ-201-01',
-            assetType: 'PROJECTOR'
-        },
-        room: {
-            id: 'r2',
-            number: '201',
-            name: 'Lecture Hall',
-            floor: {
-                number: 2,
-                building: {
-                    name: 'Main Building'
-                }
-            }
-        },
-        attachments: []
-    },
-    {
-        id: '3',
-        title: 'Network connection down in office area',
-        description: 'The entire office area on the first floor has lost network connectivity.',
-        status: 'RESOLVED',
-        priority: 'CRITICAL',
-        createdAt: new Date(Date.now() - 172800000).toISOString(),
-        asset: {
-            id: 'a3',
-            assetTag: 'NW-101-01',
-            assetType: 'NETWORK_EQUIPMENT'
-        },
-        room: {
-            id: 'r3',
-            number: '101',
-            name: 'Admin Office',
-            floor: {
-                number: 1,
-                building: {
-                    name: 'Main Building'
-                }
-            }
-        },
-        attachments: []
-    }
-];
 
 // Get all tickets with filtering based on user role
 export async function GET(req: NextRequest) {
-    try {
-        const { userId } = await auth();
-        if (!userId) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
-
-        const { searchParams } = new URL(req.url);
-        const status = searchParams.get('status');
-        const createdByMe = searchParams.get('createdByMe') === 'true';
-        const assignedToMe = searchParams.get('assignedToMe') === 'true';
-
-        // Filter mock data based on query parameters
-        let filteredTickets = [ ...mockTickets ];
-
-        if (status) {
-            filteredTickets = filteredTickets.filter(ticket => ticket.status === status);
-        }
-
-        // In a real app, we would use the user's role and filter accordingly
-        // For the mock, we'll just return all tickets
-
-        return NextResponse.json(filteredTickets);
-    } catch (error) {
-        console.error('Error fetching tickets:', error);
-        return NextResponse.json({ error: 'Failed to fetch tickets' }, { status: 500 });
+  try {
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const dbUser = await db.user.findUnique({
+      where: { clerkId: userId },
+      select: { role: true, id: true }
+    });
+
+    if (!dbUser) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    const { searchParams } = new URL(req.url);
+    const status = searchParams.get('status');
+    const createdByMe = searchParams.get('createdByMe') === 'true';
+    const assignedToMe = searchParams.get('assignedToMe') === 'true';
+
+    // Build the where clause for the query
+    const where: any = {};
+
+    // Filter by status if provided
+    if (status) {
+      where.status = status;
+    }
+
+    // Filter by user role and requested filter
+    if (createdByMe) {
+      where.createdById = dbUser.id;
+    } else if (assignedToMe) {
+      where.assignedToId = dbUser.id;
+    } else if (dbUser.role === 'member') {
+      // Members can only see tickets they created
+      where.createdById = dbUser.id;
+    } else if (dbUser.role === 'technician') {
+      // Technicians can see tickets assigned to them or unassigned tickets
+      where.OR = [{ assignedToId: dbUser.id }, { assignedToId: null }];
+    }
+    // Admins and moderators can see all tickets, so no additional filters
+
+    // Fetch tickets from the database
+    const tickets = await db.ticket.findMany({
+      where,
+      include: {
+        asset: true,
+        room: {
+          include: {
+            floor: {
+              include: {
+                building: true
+              }
+            }
+          }
+        },
+        attachments: {
+          select: {
+            id: true
+          }
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+
+    return NextResponse.json(tickets);
+  } catch (error) {
+    console.error('Error fetching tickets:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch tickets' },
+      { status: 500 }
+    );
+  }
 }
 
 // Create a new ticket
 export async function POST(req: NextRequest) {
-    try {
-        const { userId } = await auth();
-        if (!userId) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
-
-        const body = await req.json();
-        const validatedData = ticketCreateSchema.safeParse(body);
-
-        if (!validatedData.success) {
-            return NextResponse.json({ error: validatedData.error.format() }, { status: 400 });
-        }
-
-        const { title, description, priority, assetId, roomId } = validatedData.data;
-
-        // In a real app, we would save to the database
-        // For the mock, we'll just return a success message
-        const newTicket = {
-            id: `${mockTickets.length + 1}`,
-            title,
-            description,
-            status: 'OPEN',
-            priority,
-            createdAt: new Date().toISOString(),
-            asset: null,
-            room: null,
-            attachments: []
-        };
-
-        return NextResponse.json(newTicket);
-    } catch (error) {
-        console.error('Error creating ticket:', error);
-        return NextResponse.json({ error: 'Failed to create ticket' }, { status: 500 });
+  try {
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-} 
+
+    const dbUser = await db.user.findUnique({
+      where: { clerkId: userId },
+      select: { id: true }
+    });
+
+    if (!dbUser) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    const body = await req.json();
+    const validatedData = ticketCreateSchema.safeParse(body);
+
+    if (!validatedData.success) {
+      return NextResponse.json(
+        { error: validatedData.error.format() },
+        { status: 400 }
+      );
+    }
+
+    const { title, description, priority, assetId, roomId } =
+      validatedData.data;
+
+    const newTicket = await db.ticket.create({
+      data: {
+        title,
+        description,
+        priority,
+        status: 'OPEN',
+        createdById: dbUser.id,
+        assetId,
+        roomId
+      },
+      include: {
+        asset: true,
+        room: {
+          include: {
+            floor: {
+              include: {
+                building: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    return NextResponse.json(newTicket);
+  } catch (error) {
+    console.error('Error creating ticket:', error);
+    return NextResponse.json(
+      { error: 'Failed to create ticket' },
+      { status: 500 }
+    );
+  }
+}
