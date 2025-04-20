@@ -2,7 +2,7 @@
 
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Plus } from 'lucide-react';
 import {
@@ -13,11 +13,20 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 import { setEntityNameInStorage } from '@/hooks/use-breadcrumbs';
+import * as React from 'react';
+import { useUser } from '@clerk/nextjs';
+import { User } from '@/types/user';
+import { usePermissions } from '@/hooks/use-permissions';
+import { PermissionLink } from '@/components/auth/permission-link';
+import {
+    BUILDING_UPDATE,
+    FLOOR_CREATE
+} from '@/constants/permissions';
 
 interface BuildingDetailPageProps {
-    params: {
+    params: Promise<{
         id: string;
-    };
+    }>;
 }
 
 type Building = {
@@ -46,10 +55,38 @@ type Floor = {
 };
 
 export default function BuildingDetailPage({ params }: BuildingDetailPageProps) {
-    const { id } = params;
+    const unwrappedParams = React.use(params);
+    const id = unwrappedParams.id;
     const [ building, setBuilding ] = useState<Building | null>(null);
     const [ loading, setLoading ] = useState(true);
     const [ error, setError ] = useState<Error | null>(null);
+    const { user } = useUser();
+
+    // Memoize the user object to prevent recreation on every render
+    const userForPermissions = useMemo(() => {
+        if (!user) return null;
+
+        return {
+            id: user.id,
+            clerkId: user.id,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            username: user.username,
+            email: user.emailAddresses[ 0 ]?.emailAddress || null,
+            profileImageUrl: user.imageUrl,
+            role: 'admin',
+            createdAt: new Date(),
+            updatedAt: new Date()
+        } as User;
+    }, [ user ]);
+
+    // Get permissions from our hook
+    const permissionsApi = usePermissions(userForPermissions);
+    const { can } = permissionsApi;
+
+    // Check if user can edit building or add floor
+    const canEditBuilding = can(BUILDING_UPDATE);
+    const canAddFloor = can(FLOOR_CREATE);
 
     useEffect(() => {
         const fetchBuildingData = async () => {
@@ -117,15 +154,19 @@ export default function BuildingDetailPage({ params }: BuildingDetailPageProps) 
                     )}
                 </div>
                 <div className="flex gap-2">
-                    <Link href={`/dashboard/inventory/buildings/${id}/edit`}>
-                        <Button variant="outline">Edit Building</Button>
-                    </Link>
-                    <Link href={`/dashboard/inventory/buildings/${id}/floors/new`}>
-                        <Button>
-                            <Plus className="mr-2 h-4 w-4" />
-                            Add Floor
-                        </Button>
-                    </Link>
+                    {canEditBuilding && (
+                        <Link href={`/dashboard/inventory/buildings/${id}/edit`}>
+                            <Button variant="outline">Edit Building</Button>
+                        </Link>
+                    )}
+                    {canAddFloor && (
+                        <Link href={`/dashboard/inventory/buildings/${id}/floors/new`}>
+                            <Button>
+                                <Plus className="mr-2 h-4 w-4" />
+                                Add Floor
+                            </Button>
+                        </Link>
+                    )}
                 </div>
             </div>
 
@@ -135,12 +176,14 @@ export default function BuildingDetailPage({ params }: BuildingDetailPageProps) 
                     <p className="text-muted-foreground mb-4">
                         Start by adding floors to this building
                     </p>
-                    <Link href={`/dashboard/inventory/buildings/${id}/floors/new`}>
-                        <Button>
-                            <Plus className="mr-2 h-4 w-4" />
-                            Add First Floor
-                        </Button>
-                    </Link>
+                    {canAddFloor && (
+                        <Link href={`/dashboard/inventory/buildings/${id}/floors/new`}>
+                            <Button>
+                                <Plus className="mr-2 h-4 w-4" />
+                                Add First Floor
+                            </Button>
+                        </Link>
+                    )}
                 </div>
             ) : (
                 <div className="grid gap-6">
@@ -153,12 +196,16 @@ export default function BuildingDetailPage({ params }: BuildingDetailPageProps) 
                                         {floor.name && ` - ${floor.name}`}
                                     </CardTitle>
                                     <div className="flex gap-2">
-                                        <Link href={`/dashboard/inventory/floors/${floor.id}/rooms/new`}>
+                                        <PermissionLink
+                                            href={`/dashboard/inventory/floors/${floor.id}/rooms/new`}
+                                            permission={FLOOR_CREATE}
+                                            user={userForPermissions}
+                                        >
                                             <Button size="sm">
                                                 <Plus className="mr-2 h-4 w-4" />
                                                 Add Room
                                             </Button>
-                                        </Link>
+                                        </PermissionLink>
                                         <Link href={`/dashboard/inventory/floors/${floor.id}`}>
                                             <Button variant="outline" size="sm">View Details</Button>
                                         </Link>

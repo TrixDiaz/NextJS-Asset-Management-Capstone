@@ -1,4 +1,4 @@
-export type Role = 'admin' | 'manager' | 'user' | 'guest';
+export type Role = 'admin' | 'technician' | 'member' | 'manager' | 'user' | 'guest';
 
 export interface Permission {
     id: string;

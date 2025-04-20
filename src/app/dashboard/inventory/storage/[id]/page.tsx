@@ -1,3 +1,5 @@
+"use client";
+
 import React from 'react';
 import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
@@ -13,6 +15,10 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { formatDistance } from 'date-fns';
 import { setEntityNameInStorage } from '@/hooks/use-breadcrumbs';
+import { useUser } from '@clerk/nextjs';
+import { PermissionLink } from '@/components/auth/permission-link';
+import { ASSET_DEPLOY } from '@/constants/permissions';
+import { User as AppUser } from '@/types/user';
 
 interface StorageItemDetailPageProps {
     params: Promise<{
@@ -44,6 +50,22 @@ type StorageItem = {
 
 // Content component to avoid React.use in async function error
 function StorageItemContent({ storageItem, id }: { storageItem: StorageItem, id: string }) {
+    const { user } = useUser();
+
+    // Create user object for permission checks
+    const userForPermissions: AppUser | null = user ? {
+        id: user.id,
+        clerkId: user.id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        username: user.username,
+        email: user.emailAddresses[ 0 ]?.emailAddress || null,
+        profileImageUrl: user.imageUrl,
+        role: (user.publicMetadata?.role as any) || 'member',
+        createdAt: new Date(),
+        updatedAt: new Date()
+    } : null;
+
     // Store the storage item name in localStorage for breadcrumbs
     React.useEffect(() => {
         // Only run this on the client
@@ -136,11 +158,15 @@ function StorageItemContent({ storageItem, id }: { storageItem: StorageItem, id:
 
                     {storageItem.quantity > 0 && (
                         <div className="mt-6">
-                            <Link href={`/dashboard/inventory/storage/${id}/deploy`}>
+                            <PermissionLink
+                                href={`/dashboard/inventory/storage/${id}/deploy`}
+                                permission={ASSET_DEPLOY}
+                                user={userForPermissions}
+                            >
                                 <Button>
                                     Deploy Item
                                 </Button>
-                            </Link>
+                            </PermissionLink>
                         </div>
                     )}
                 </div>

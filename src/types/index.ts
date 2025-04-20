@@ -5,11 +5,12 @@ export interface NavItem {
   url: string;
   disabled?: boolean;
   external?: boolean;
-  shortcut?: [string, string];
+  shortcut?: [ string, string ];
   icon?: keyof typeof Icons;
   label?: string;
   description?: string;
   isActive?: boolean;
+  permissionRequired?: string;
   items?: NavItem[];
 }
 

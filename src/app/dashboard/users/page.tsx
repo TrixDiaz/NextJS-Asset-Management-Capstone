@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { UserPlus, Trash2, Pencil, Download, ChevronDown, FilterX, FileDown, MoreHorizontal, Calendar } from 'lucide-react';
+import { UserPlus, Trash2, Pencil, Download, ChevronDown, FilterX, FileDown, MoreHorizontal, Calendar, Lock } from 'lucide-react';
 import Link from 'next/link';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -43,14 +43,21 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { useRouter } from 'next/navigation';
+import { useUser } from '@/hooks/use-user';
+import { usePermissions } from '@/hooks/use-permissions';
+import { USER_CREATE, USER_UPDATE, USER_DELETE } from '@/constants/permissions';
 
 interface User {
     id: string;
-    firstName?: string;
-    lastName?: string;
-    email?: string;
-    username?: string;
+    clerkId: string;
+    firstName?: string | null;
+    lastName?: string | null;
+    email?: string | null;
+    username?: string | null;
+    profileImageUrl?: string | null;
     role: string;
+    permissions?: any[];
     createdAt: string;
     updatedAt: string;
 }
@@ -58,9 +65,13 @@ interface User {
 type SortDirection = 'asc' | 'desc' | null;
 type SortField = 'name' | 'username' | 'email' | 'role' | 'createdAt';
 
+// Define permission types
+type Permission = 'create' | 'edit' | 'delete' | 'export' | 'bulkActions';
+
 export default function UsersPage() {
     const [ users, setUsers ] = useState<User[]>([]);
     const [ isLoading, setIsLoading ] = useState(true);
+    const [ currentUser, setCurrentUser ] = useState<User | null>(null);
     const [ selectedUsers, setSelectedUsers ] = useState<Record<string, boolean>>({});
     const [ searchQuery, setSearchQuery ] = useState('');
     const [ sortField, setSortField ] = useState<SortField | null>(null);
@@ -103,6 +114,100 @@ export default function UsersPage() {
     const selectedUserIds = Object.entries(selectedUsers)
         .filter(([ _, isSelected ]) => isSelected)
         .map(([ id ]) => id);
+
+    // Get permissions from our hook
+    const permissionsApi = usePermissions(currentUser as any);
+    const { can } = permissionsApi;
+
+    // Function to check if user has permission for a specific action
+    const hasPermission = (action: Permission): boolean => {
+        switch (action) {
+            case 'create':
+                return can(USER_CREATE);
+            case 'edit':
+                return can(USER_UPDATE);
+            case 'delete':
+                return can(USER_DELETE);
+            case 'export':
+                // Allow export for any user with READ permissions
+                return currentUser?.role !== 'guest';
+            case 'bulkActions':
+                return can(USER_DELETE) || can(USER_UPDATE);
+            default:
+                return false;
+        }
+    };
+
+    // Fetch current user information with permissions
+    useEffect(() => {
+        const fetchCurrentUser = async () => {
+            try {
+                // For testing, get a role from URL query param if available
+                const urlParams = new URLSearchParams(window.location.search);
+                const testRole = urlParams.get('testRole');
+
+                if (testRole && [ 'admin', 'technician', 'member', 'guest' ].includes(testRole)) {
+                    // Create a test user with the specified role
+                    const testUser = {
+                        id: `test-${testRole}`,
+                        clerkId: `test-${testRole}`,
+                        firstName: testRole.charAt(0).toUpperCase() + testRole.slice(1),
+                        lastName: 'Test',
+                        username: testRole,
+                        email: `${testRole}@example.com`,
+                        role: testRole as any,
+                        permissions: [],
+                        profileImageUrl: null,
+                        createdAt: new Date().toISOString(),
+                        updatedAt: new Date().toISOString()
+                    };
+                    setCurrentUser(testUser as User);
+                } else {
+                    // Try to get the actual logged in user
+                    const response = await fetch('/api/users/current');
+                    if (response.ok) {
+                        const data = await response.json();
+                        setCurrentUser(data);
+                    } else {
+                        // Fallback to using a test admin account for demo
+                        const testUser = {
+                            id: 'test-admin',
+                            clerkId: 'test-admin',
+                            firstName: 'Admin',
+                            lastName: 'User',
+                            username: 'admin',
+                            email: 'admin@example.com',
+                            role: 'admin',
+                            permissions: [],
+                            profileImageUrl: null,
+                            createdAt: new Date().toISOString(),
+                            updatedAt: new Date().toISOString()
+                        };
+                        setCurrentUser(testUser as User);
+                    }
+                }
+            } catch (error) {
+                console.error("Error fetching current user:", error);
+                // Fallback to using a test account
+                const testUser = {
+                    id: 'test-admin',
+                    clerkId: 'test-admin',
+                    firstName: 'Admin',
+                    lastName: 'User',
+                    username: 'admin',
+                    email: 'admin@example.com',
+                    role: 'admin',
+                    permissions: [],
+                    profileImageUrl: null,
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString()
+                };
+                setCurrentUser(testUser as User);
+            }
+        };
+
+        fetchCurrentUser();
+    }, []);
 
     // Fetch users data
     useEffect(() => {
@@ -380,8 +485,8 @@ export default function UsersPage() {
     const getRoleBadgeVariant = (role: string) => {
         switch (role) {
             case "admin": return "destructive";
-            case "manager": return "default";
-            case "user": return "secondary";
+            case "member": return "default";
+            case "moderator": return "secondary";
             case "guest": return "outline";
             default: return "secondary";
         }
@@ -446,7 +551,7 @@ export default function UsersPage() {
                 firstName: userToEdit.firstName || '',
                 lastName: userToEdit.lastName || '',
                 username: userToEdit.username || '',
-                role: userToEdit.role || 'user'
+                role: userToEdit.role || 'member'
             });
         }
     }, [ userToEdit ]);
@@ -495,16 +600,90 @@ export default function UsersPage() {
         }
     };
 
+    const router = useRouter();
+
+    // Add a permissions link/button in the dropdown menu for each user
+    const renderActionMenu = (user: User) => (
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="h-8 w-8 p-0">
+                    <span className="sr-only">Open menu</span>
+                    <MoreHorizontal className="h-4 w-4" />
+                </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+                {can(USER_UPDATE) && (
+                    <DropdownMenuItem onClick={() => handleEditUser(user)}>
+                        <Pencil className="mr-2 h-4 w-4" />
+                        Edit
+                    </DropdownMenuItem>
+                )}
+                <DropdownMenuItem onClick={() => router.push(`/dashboard/users/${user.id}/permissions`)}>
+                    <span className="flex items-center">
+                        <Lock className="mr-2 h-4 w-4" />
+                        Manage Permissions
+                    </span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                {can(USER_DELETE) && (
+                    <DropdownMenuItem
+                        className="text-red-600"
+                        onClick={() => handleDeleteUser(user.id)}
+                    >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete
+                    </DropdownMenuItem>
+                )}
+            </DropdownMenuContent>
+        </DropdownMenu>
+    );
+
+    // Add a function to seed permissions
+    const handleSeedPermissions = async () => {
+        try {
+            setIsLoading(true);
+            const response = await fetch('/api/seed-permissions', {
+                method: 'POST',
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to seed permissions');
+            }
+
+            const data = await response.json();
+            if (data.success) {
+                toast.success(`${data.message}. User permissions are now available.`);
+            } else {
+                toast.error('Failed to seed permissions');
+            }
+        } catch (error) {
+            console.error('Error seeding permissions:', error);
+            toast.error('Failed to seed permissions');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     return (
         <div className="p-6 space-y-6 w-full relative">
             <div className="flex justify-between items-center">
-                <h1 className="text-3xl font-bold">User Management</h1>
-                <Link href="/dashboard/users/new">
-                    <Button>
-                        <UserPlus className="mr-2 h-4 w-4" />
-                        Add User
-                    </Button>
-                </Link>
+                <h1 className="text-3xl font-bold">Users</h1>
+                <div className="flex gap-2">
+                    {hasPermission('create') && (
+                        <Link href="/dashboard/users/new">
+                            <Button>
+                                <UserPlus className="mr-2 h-4 w-4" />
+                                New User
+                            </Button>
+                        </Link>
+                    )}
+                    {hasPermission('create') && (
+                        <Button variant="outline" onClick={handleSeedPermissions}>
+                            <Lock className="mr-2 h-4 w-4" />
+                            Seed Permissions
+                        </Button>
+                    )}
+                </div>
             </div>
 
             <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
@@ -537,16 +716,16 @@ export default function UsersPage() {
                                             Admin
                                         </DropdownMenuCheckboxItem>
                                         <DropdownMenuCheckboxItem
-                                            checked={roleFilter.includes("manager")}
-                                            onCheckedChange={() => toggleRoleFilter("manager")}
+                                            checked={roleFilter.includes("member")}
+                                            onCheckedChange={() => toggleRoleFilter("member")}
                                         >
-                                            Manager
+                                            Member
                                         </DropdownMenuCheckboxItem>
                                         <DropdownMenuCheckboxItem
-                                            checked={roleFilter.includes("user")}
-                                            onCheckedChange={() => toggleRoleFilter("user")}
+                                            checked={roleFilter.includes("moderator")}
+                                            onCheckedChange={() => toggleRoleFilter("moderator")}
                                         >
-                                            User
+                                            Moderator
                                         </DropdownMenuCheckboxItem>
                                         <DropdownMenuCheckboxItem
                                             checked={roleFilter.includes("guest")}
@@ -570,15 +749,17 @@ export default function UsersPage() {
                             </div>
 
                             <div className="flex items-center space-x-2">
-                                <Button
-                                    size="sm"
-                                    onClick={handleExportSelected}
-                                    variant="outline"
-                                    className="h-8"
-                                >
-                                    <FileDown className="mr-2 h-4 w-4" />
-                                    Export
-                                </Button>
+                                {hasPermission('export') && (
+                                    <Button
+                                        size="sm"
+                                        onClick={handleExportSelected}
+                                        variant="outline"
+                                        className="h-8"
+                                    >
+                                        <FileDown className="mr-2 h-4 w-4" />
+                                        Export
+                                    </Button>
+                                )}
 
                                 {/* Column visibility */}
                                 <DropdownMenu>
@@ -758,34 +939,7 @@ export default function UsersPage() {
                                                 )}
                                                 {visibleColumns.actions && (
                                                     <TableCell>
-                                                        <DropdownMenu>
-                                                            <DropdownMenuTrigger asChild>
-                                                                <Button variant="ghost" className="h-8 w-8 p-0">
-                                                                    <span className="sr-only">Open menu</span>
-                                                                    <MoreHorizontal className="h-4 w-4" />
-                                                                </Button>
-                                                            </DropdownMenuTrigger>
-                                                            <DropdownMenuContent align="end">
-                                                                <DropdownMenuItem onClick={() => handleEditUser(user)}>
-                                                                    <Pencil className="mr-2 h-4 w-4" />
-                                                                    Edit
-                                                                </DropdownMenuItem>
-                                                                <DropdownMenuItem asChild>
-                                                                    <Link href={`/dashboard/users/${user.id}/schedules`}>
-                                                                        <Calendar className="mr-2 h-4 w-4" />
-                                                                        Schedules
-                                                                    </Link>
-                                                                </DropdownMenuItem>
-                                                                <DropdownMenuSeparator />
-                                                                <DropdownMenuItem
-                                                                    onClick={() => handleDeleteUser(user.id)}
-                                                                    className="text-destructive focus:text-destructive"
-                                                                >
-                                                                    <Trash2 className="mr-2 h-4 w-4" />
-                                                                    Delete
-                                                                </DropdownMenuItem>
-                                                            </DropdownMenuContent>
-                                                        </DropdownMenu>
+                                                        {renderActionMenu(user)}
                                                     </TableCell>
                                                 )}
                                             </TableRow>
@@ -879,31 +1033,37 @@ export default function UsersPage() {
                     <span className="py-2 px-3 bg-muted rounded-md text-sm font-medium">
                         {selectedCount} selected
                     </span>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleDeleteSelected}
-                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                    >
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Delete
-                    </Button>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleUpdateSelected}
-                    >
-                        <Pencil className="mr-2 h-4 w-4" />
-                        Change Role
-                    </Button>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleExportSelected}
-                    >
-                        <Download className="mr-2 h-4 w-4" />
-                        Export
-                    </Button>
+                    {hasPermission('delete') && (
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleDeleteSelected}
+                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete
+                        </Button>
+                    )}
+                    {hasPermission('edit') && (
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleUpdateSelected}
+                        >
+                            <Pencil className="mr-2 h-4 w-4" />
+                            Change Role
+                        </Button>
+                    )}
+                    {hasPermission('export') && (
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleExportSelected}
+                        >
+                            <Download className="mr-2 h-4 w-4" />
+                            Export
+                        </Button>
+                    )}
                 </div>
             )}
 
@@ -944,8 +1104,8 @@ export default function UsersPage() {
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="admin">Admin</SelectItem>
-                                <SelectItem value="manager">Manager</SelectItem>
-                                <SelectItem value="user">User</SelectItem>
+                                <SelectItem value="member">Member</SelectItem>
+                                <SelectItem value="moderator">Moderator</SelectItem>
                                 <SelectItem value="guest">Guest</SelectItem>
                             </SelectContent>
                         </Select>
@@ -1043,8 +1203,8 @@ export default function UsersPage() {
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="admin">Admin</SelectItem>
-                                        <SelectItem value="manager">Manager</SelectItem>
-                                        <SelectItem value="user">User</SelectItem>
+                                        <SelectItem value="member">Member</SelectItem>
+                                        <SelectItem value="moderator">Moderator</SelectItem>
                                         <SelectItem value="guest">Guest</SelectItem>
                                     </SelectContent>
                                 </Select>

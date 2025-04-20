@@ -1,3 +1,5 @@
+'use client';
+
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import {
@@ -21,8 +23,34 @@ import {
     CardHeader,
     CardTitle,
 } from "@/components/ui/card";
+import { useUser } from '@clerk/nextjs';
+import { PermissionLink } from '@/components/auth/permission-link';
+import {
+    BUILDING_READ,
+    BUILDING_CREATE,
+    ASSET_READ,
+    ASSET_CREATE,
+    STORAGE_READ,
+} from '@/constants/permissions';
+import { User } from '@/types/user';
 
 export default function WelcomePage() {
+    const { user } = useUser();
+
+    // Create user object for permission checks
+    const userForPermissions: User | null = user ? {
+        id: user.id,
+        clerkId: user.id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        username: user.username,
+        email: user.emailAddresses[ 0 ]?.emailAddress || null,
+        profileImageUrl: user.imageUrl,
+        role: 'admin',
+        createdAt: new Date(),
+        updatedAt: new Date()
+    } : null;
+
     return (
         <div className="container px-4 sm:px-6 mx-auto h-screen overflow-y-auto">
             <div className="mb-8 text-center py-4">
@@ -44,11 +72,16 @@ export default function WelcomePage() {
                         <p className="text-sm sm:text-base">Manage your organization&apos;s buildings, floors, and rooms in a hierarchical structure.</p>
                     </CardContent>
                     <CardFooter>
-                        <Link href="/dashboard/inventory" className="w-full">
+                        <PermissionLink
+                            href="/dashboard/inventory"
+                            permission={BUILDING_READ}
+                            user={userForPermissions}
+                            className="w-full"
+                        >
                             <Button variant="outline" className="w-full">
                                 View Buildings
                             </Button>
-                        </Link>
+                        </PermissionLink>
                     </CardFooter>
                 </Card>
 
@@ -63,11 +96,16 @@ export default function WelcomePage() {
                         <p className="text-sm sm:text-base">Track computers, monitors, and other equipment with details on their location and status.</p>
                     </CardContent>
                     <CardFooter>
-                        <Link href="/dashboard/inventory/assets" className="w-full">
+                        <PermissionLink
+                            href="/dashboard/inventory/assets"
+                            permission={ASSET_READ}
+                            user={userForPermissions}
+                            className="w-full"
+                        >
                             <Button variant="outline" className="w-full">
                                 View Assets
                             </Button>
-                        </Link>
+                        </PermissionLink>
                     </CardFooter>
                 </Card>
 
@@ -82,11 +120,16 @@ export default function WelcomePage() {
                         <p className="text-sm sm:text-base">Maintain inventory of cables, software, hardware, and other items in your storage.</p>
                     </CardContent>
                     <CardFooter>
-                        <Link href="/dashboard/inventory/storage" className="w-full">
+                        <PermissionLink
+                            href="/dashboard/inventory/storage"
+                            permission={STORAGE_READ}
+                            user={userForPermissions}
+                            className="w-full"
+                        >
                             <Button variant="outline" className="w-full">
                                 View Storage
                             </Button>
-                        </Link>
+                        </PermissionLink>
                     </CardFooter>
                 </Card>
             </div>
@@ -182,7 +225,12 @@ export default function WelcomePage() {
                         <CardDescription>Get started with these essential actions</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        <Link href="/dashboard/inventory/buildings/new" className="w-full">
+                        <PermissionLink
+                            href="/dashboard/inventory/buildings/new"
+                            permission={BUILDING_CREATE}
+                            user={userForPermissions}
+                            className="w-full"
+                        >
                             <Button variant="default" className="w-full flex justify-between items-center gap-2" size="sm">
                                 <span className="flex items-center">
                                     <Building className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
@@ -190,8 +238,13 @@ export default function WelcomePage() {
                                 </span>
                                 <Plus className="h-4 w-4" />
                             </Button>
-                        </Link>
-                        <Link href="/dashboard/inventory/assets/new" className="w-full">
+                        </PermissionLink>
+                        <PermissionLink
+                            href="/dashboard/inventory/assets/new"
+                            permission={ASSET_CREATE}
+                            user={userForPermissions}
+                            className="w-full"
+                        >
                             <Button variant="outline" className="w-full flex justify-between items-center gap-2" size="sm">
                                 <span className="flex items-center">
                                     <Monitor className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
@@ -199,8 +252,13 @@ export default function WelcomePage() {
                                 </span>
                                 <Plus className="h-4 w-4" />
                             </Button>
-                        </Link>
-                        <Link href="/dashboard/inventory/storage/new" className="w-full">
+                        </PermissionLink>
+                        <PermissionLink
+                            href="/dashboard/inventory/storage/new"
+                            permission={STORAGE_READ}
+                            user={userForPermissions}
+                            className="w-full"
+                        >
                             <Button variant="outline" className="w-full flex justify-between items-center gap-2" size="sm">
                                 <span className="flex items-center">
                                     <Package className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
@@ -208,7 +266,7 @@ export default function WelcomePage() {
                                 </span>
                                 <Plus className="h-4 w-4" />
                             </Button>
-                        </Link>
+                        </PermissionLink>
                         <Link href="/dashboard/users/new" className="w-full">
                             <Button variant="outline" className="w-full flex justify-between items-center gap-2" size="sm">
                                 <span className="flex items-center">

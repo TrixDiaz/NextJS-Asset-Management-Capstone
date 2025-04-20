@@ -29,7 +29,6 @@ import {
   SidebarRail
 } from '@/components/ui/sidebar';
 import { UserAvatarProfile } from '@/components/user-avatar-profile';
-import { navItems } from '@/constants/data';
 import { useMediaQuery } from '@/hooks/use-media-query';
 import { useUser } from '@clerk/nextjs';
 import {
@@ -45,6 +44,11 @@ import { usePathname, useRouter } from 'next/navigation';
 import * as React from 'react';
 import { Icons } from '../icons';
 import { OrgSwitcher } from '../org-switcher';
+import { getFilteredNavItems } from '@/lib/navigation';
+import { useState, useEffect } from 'react';
+import { NavItem } from '@/types';
+import { User as AppUser, Role } from '@/types/user';
+
 export const company = {
   name: 'Acme Inc',
   logo: IconPhotoUp,
@@ -62,11 +66,48 @@ export default function AppSidebar() {
   const { isOpen } = useMediaQuery();
   const { user } = useUser();
   const router = useRouter();
+  const [ filteredNavItems, setFilteredNavItems ] = useState<NavItem[]>([]);
+  const [ userRole, setUserRole ] = useState<Role>('member');
+
   const handleSwitchTenant = (_tenantId: string) => {
     // Tenant switching functionality would be implemented here
   };
 
   const activeTenant = tenants[ 0 ];
+
+  // Get filtered navigation items based on user permissions
+  useEffect(() => {
+    // Convert Clerk user to our User type for permissions check
+    if (user) {
+      // Get the user's actual role from their metadata or use a default
+      const userMetadataRole = user.publicMetadata?.role as string;
+      // Map the role to our Role type, ensuring it's a valid value
+      const validRoles: Role[] = [ 'admin', 'technician', 'member', 'manager', 'user', 'guest' ];
+      const role: Role = validRoles.includes(userMetadataRole as Role)
+        ? (userMetadataRole as Role)
+        : 'member';
+
+      setUserRole(role);
+      console.log('User role in sidebar:', role);
+
+      const userForPermissions: AppUser = {
+        id: user.id,
+        clerkId: user.id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        username: user.username,
+        email: user.emailAddresses[ 0 ]?.emailAddress || null,
+        profileImageUrl: user.imageUrl,
+        role: role,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      setFilteredNavItems(getFilteredNavItems(userForPermissions));
+    } else {
+      setFilteredNavItems([]);
+    }
+  }, [ user ]);
 
   React.useEffect(() => {
     // Side effects based on sidebar state changes
@@ -85,7 +126,7 @@ export default function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupLabel>Overview</SidebarGroupLabel>
           <SidebarMenu>
-            {navItems.map((item) => {
+            {filteredNavItems.map((item) => {
               const Icon = item.icon ? Icons[ item.icon ] : Icons.logo;
               return item?.items && item?.items?.length > 0 ? (
                 <Collapsible
@@ -169,11 +210,18 @@ export default function AppSidebar() {
                 <DropdownMenuLabel className='p-0 font-normal'>
                   <div className='px-1 py-1.5'>
                     {user && (
-                      <UserAvatarProfile
-                        className='h-8 w-8 rounded-lg'
-                        showInfo
-                        user={user}
-                      />
+                      <>
+                        <UserAvatarProfile
+                          className='h-8 w-8 rounded-lg'
+                          showInfo
+                          user={user}
+                        />
+                        {userRole && (
+                          <div className="mt-1 text-xs text-muted-foreground">
+                            Role: <span className="capitalize font-medium">{userRole}</span>
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 </DropdownMenuLabel>
@@ -186,6 +234,15 @@ export default function AppSidebar() {
                     <IconUserCircle className='mr-2 h-4 w-4' />
                     Profile
                   </DropdownMenuItem>
+
+                  {userRole === 'admin' && (
+                    <DropdownMenuItem
+                      onClick={() => router.push('/dashboard/users')}
+                    >
+                      <IconUserCircle className='mr-2 h-4 w-4' />
+                      User Management
+                    </DropdownMenuItem>
+                  )}
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />
               </DropdownMenuContent>

@@ -27,7 +27,8 @@ export const navItems: NavItem[] = [
         title: 'Storage',
         url: '/dashboard/inventory/storage',
         icon: 'product',
-        shortcut: [ 'i', 's' ]
+        shortcut: [ 'i', 's' ],
+        permissionRequired: 'storage_read'
       }
     ]
   },
@@ -45,6 +46,7 @@ export const navItems: NavItem[] = [
     icon: 'activity',
     shortcut: [ 'r', 'r' ],
     isActive: false,
+    permissionRequired: 'report_read',
     items: [] // No child items
   },
   {
@@ -53,7 +55,7 @@ export const navItems: NavItem[] = [
     icon: 'user',
     shortcut: [ 'u', 'u' ],
     isActive: false,
-    items: [] // No child items
+    permissionRequired: 'user_read',
   },
   {
     title: 'Schedules',
@@ -69,11 +71,12 @@ export const navItems: NavItem[] = [
     icon: 'activity',
     shortcut: [ 'l', 'l' ],
     isActive: false,
+    permissionRequired: 'logs_read',
     items: [] // No child items
   },
   {
     title: 'Account',
-    url: '#', // Placeholder as there is no direct link for the parent
+    url: '/dashboard/profile',
     icon: 'billing',
     isActive: true,
 

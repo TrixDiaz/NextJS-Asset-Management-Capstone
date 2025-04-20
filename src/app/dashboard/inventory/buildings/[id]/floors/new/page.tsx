@@ -1,23 +1,101 @@
+"use client";
+
 import FloorForm from '@/components/forms/floor-form';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
-import { prisma } from '@/lib/prisma';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
+import * as React from 'react';
+import { useUser } from '@clerk/nextjs';
+import { usePermissions } from '@/hooks/use-permissions';
+import { User } from '@/types/user';
+import { FLOOR_CREATE } from '@/constants/permissions';
+import { useMemo } from 'react';
 
 interface NewFloorPageProps {
-    params: {
+    params: Promise<{
         id: string;
-    };
+    }>;
 }
 
-export default async function NewFloorPage({ params }: NewFloorPageProps) {
-    const { id } = params;
+type Building = {
+    id: string;
+    name: string;
+    code: string | null;
+    address: string | null;
+    createdAt: string;
+    updatedAt: string;
+};
 
-    // Fetch building details to show in the heading
-    const building = await prisma.building.findUnique({
-        where: { id }
-    });
+export default function NewFloorPage({ params }: NewFloorPageProps) {
+    const unwrappedParams = React.use(params);
+    const id = unwrappedParams.id;
+    const [ building, setBuilding ] = React.useState<Building | null>(null);
+    const [ loading, setLoading ] = React.useState(true);
+    const [ error, setError ] = React.useState<Error | null>(null);
+    const { user } = useUser();
+
+    // Memoize the user object to prevent recreation on every render
+    const userForPermissions = useMemo(() => {
+        if (!user) return null;
+
+        return {
+            id: user.id,
+            clerkId: user.id,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            username: user.username,
+            email: user.emailAddresses[ 0 ]?.emailAddress || null,
+            profileImageUrl: user.imageUrl,
+            role: 'admin',
+            createdAt: new Date(),
+            updatedAt: new Date()
+        } as User;
+    }, [ user ]);
+
+    // Get permissions from our hook
+    const { can } = usePermissions(userForPermissions);
+    const canCreateFloor = can(FLOOR_CREATE);
+
+    // Redirect if user doesn't have permission to create floors
+    React.useEffect(() => {
+        if (userForPermissions && !canCreateFloor && !loading) {
+            redirect(`/dashboard/inventory/buildings/${id}`);
+        }
+    }, [ userForPermissions, canCreateFloor, loading, id ]);
+
+    React.useEffect(() => {
+        const fetchBuilding = async () => {
+            try {
+                const response = await fetch(`/api/buildings/${id}`);
+                if (!response.ok) {
+                    if (response.status === 404) {
+                        setLoading(false);
+                        return;
+                    }
+                    throw new Error('Failed to fetch building data');
+                }
+
+                const buildingData = await response.json();
+                setBuilding(buildingData);
+                setLoading(false);
+            } catch (error) {
+                console.error("Error fetching building:", error);
+                setError(error instanceof Error ? error : new Error('Unknown error'));
+                setLoading(false);
+            }
+        };
+
+        fetchBuilding();
+    }, [ id ]);
+
+    if (loading) {
+        return <div className="container p-6">Loading building details...</div>;
+    }
+
+    if (error) {
+        return <div className="container p-6">Error: {error.message}</div>;
+    }
 
     if (!building) {
         notFound();

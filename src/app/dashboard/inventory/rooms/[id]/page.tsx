@@ -25,6 +25,19 @@ import {
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { setEntityNameInStorage } from '@/hooks/use-breadcrumbs';
+import { useUser } from '@clerk/nextjs';
+import { usePermissions } from '@/hooks/use-permissions';
+import { User as AppUser } from '@/types/user';
+import {
+    ROOM_READ,
+    ROOM_UPDATE,
+    ROOM_DELETE,
+    SCHEDULE_CREATE,
+    ASSET_DEPLOY
+} from '@/constants/permissions';
+
+// Define permission actions
+type Permission = 'create' | 'edit' | 'delete' | 'read' | 'export' | 'deploy' | 'schedule';
 
 interface RoomDetailPageProps {
     params: Promise<{
@@ -89,6 +102,46 @@ export default function RoomDetailPage({ params }: RoomDetailPageProps) {
     const [ qrCode, setQrCode ] = useState<string>('');
     const [ showQrDialog, setShowQrDialog ] = useState(false);
     const id = unwrappedParams.id;
+    const { user } = useUser();
+
+    // Create user object for permission checks
+    const userForPermissions: AppUser | null = user ? {
+        id: user.id,
+        clerkId: user.id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        username: user.username,
+        email: user.emailAddresses[ 0 ]?.emailAddress || null,
+        profileImageUrl: user.imageUrl,
+        role: (user.publicMetadata?.role as any) || 'member',
+        createdAt: new Date(),
+        updatedAt: new Date()
+    } : null;
+
+    // Get permissions from our hook
+    const permissionsApi = usePermissions(userForPermissions as any);
+    const { can } = permissionsApi;
+
+    // Function to check if user has permission for a specific action
+    const hasPermission = (action: Permission): boolean => {
+        switch (action) {
+            case 'edit':
+                return can(ROOM_UPDATE);
+            case 'delete':
+                return can(ROOM_DELETE);
+            case 'read':
+                return can(ROOM_READ);
+            case 'schedule':
+                return can(SCHEDULE_CREATE);
+            case 'deploy':
+                return can(ASSET_DEPLOY);
+            case 'export':
+                // Allow export for any user with READ permissions
+                return userForPermissions?.role !== 'guest';
+            default:
+                return false;
+        }
+    };
 
     // Helper function to get day name in proper case
     const formatDayOfWeek = (day: string) => {

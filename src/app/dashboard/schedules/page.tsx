@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { Calendar, Search, ChevronDown, FilterX, PlusCircle, AlertCircle } from 'lucide-react';
+import { Calendar, Search, ChevronDown, FilterX, PlusCircle, AlertCircle, Clock } from 'lucide-react';
 import Link from 'next/link';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,22 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { format } from 'date-fns';
 import { toast } from "sonner";
+import { useUser } from '@clerk/nextjs';
+import { PermissionLink } from '@/components/auth/permission-link';
+import {
+    SCHEDULE_CREATE,
+    SCHEDULE_READ,
+    SCHEDULE_UPDATE,
+    SCHEDULE_DELETE
+} from '@/constants/permissions';
+import { User as AppUser } from '@/types/user';
+import { ResourcePermissionWrapper, ResourceActionButtons } from '@/components/permissions/resource-permission-wrapper';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { usePermissions } from '@/hooks/use-permissions';
+
+// Define permission actions
+type Permission = 'create' | 'edit' | 'delete' | 'read' | 'export';
 
 interface User {
     id: string;
@@ -48,6 +64,9 @@ interface Schedule {
     roomId: string;
     room: Room;
     user: User;
+    status: 'upcoming' | 'active' | 'completed' | 'cancelled';
+    organizer: string;
+    createdAt: string;
 }
 
 type SortDirection = 'asc' | 'desc' | null;
@@ -71,6 +90,44 @@ export default function SchedulesPage() {
     const [ dayFilter, setDayFilter ] = useState<string[]>([]);
     const [ pageIndex, setPageIndex ] = useState(0);
     const [ pageSize, setPageSize ] = useState(10);
+    const { user } = useUser();
+
+    // Create application user for permission checks
+    const userForPermissions: AppUser | null = user ? {
+        id: user.id,
+        clerkId: user.id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        username: user.username,
+        email: user.emailAddresses[ 0 ]?.emailAddress || null,
+        profileImageUrl: user.imageUrl,
+        role: (user.publicMetadata?.role as any) || 'member',
+        createdAt: new Date(),
+        updatedAt: new Date()
+    } : null;
+
+    // Get permissions from our hook
+    const permissionsApi = usePermissions(userForPermissions as any);
+    const { can } = permissionsApi;
+
+    // Function to check if user has permission for a specific action
+    const hasPermission = (action: Permission): boolean => {
+        switch (action) {
+            case 'create':
+                return can(SCHEDULE_CREATE);
+            case 'edit':
+                return can(SCHEDULE_UPDATE);
+            case 'delete':
+                return can(SCHEDULE_DELETE);
+            case 'read':
+                return can(SCHEDULE_READ);
+            case 'export':
+                // Allow export for any user with READ permissions
+                return userForPermissions?.role !== 'guest';
+            default:
+                return false;
+        }
+    };
 
     // Define the fetchSchedules function first so it can be referenced elsewhere
     const fetchSchedules = async () => {
@@ -224,251 +281,99 @@ export default function SchedulesPage() {
         return "Unknown User";
     };
 
+    const handleDeleteSchedule = (id: string) => {
+        toast.success(`Schedule deleted successfully`);
+        setSchedules(prev => prev.filter(schedule => schedule.id !== id));
+    };
+
+    const getStatusBadge = (status: Schedule[ 'status' ]) => {
+        switch (status) {
+            case 'upcoming':
+                return 'secondary';
+            case 'active':
+                return 'default';
+            case 'completed':
+                return 'outline';
+            case 'cancelled':
+                return 'destructive';
+            default:
+                return 'outline';
+        }
+    };
+
     return (
-        <div className="p-6 space-y-6 w-full relative">
-            <div className="flex justify-between items-center">
-                <h1 className="text-3xl font-bold">Schedules</h1>
-                <div className="flex gap-2">
-                    <Link href="/dashboard/schedules/new">
-                        <Button>
-                            <PlusCircle className="mr-2 h-4 w-4" />
-                            Add Schedule
-                        </Button>
-                    </Link>
-                </div>
-            </div>
-
-            <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
-                <div className="p-4 flex items-center justify-between">
-                    <div className="flex flex-1 items-center space-x-2">
-                        <Input
-                            placeholder="Search schedules..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="h-8 w-[150px] lg:w-[250px]"
-                        />
-
-                        {/* Day filter */}
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="outline" size="sm" className="h-8 border-dashed">
-                                    Day
-                                    <ChevronDown className="ml-2 h-4 w-4" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                                {daysOfWeek.map(day => (
-                                    <DropdownMenuCheckboxItem
-                                        key={day}
-                                        checked={dayFilter.includes(day)}
-                                        onCheckedChange={() => toggleDayFilter(day)}
-                                        className="capitalize"
-                                    >
-                                        {day}
-                                    </DropdownMenuCheckboxItem>
-                                ))}
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-
-                        {(searchQuery || dayFilter.length > 0) && (
-                            <Button
-                                variant="ghost"
-                                onClick={resetFilters}
-                                className="h-8 px-2 lg:px-3"
-                            >
-                                <FilterX className="mr-2 h-4 w-4" />
-                                Reset filters
-                            </Button>
-                        )}
-                    </div>
-                </div>
-
-                <div className="w-full overflow-auto">
+        <ResourcePermissionWrapper
+            resourceType="schedule"
+            title="Schedules"
+            createHref="/dashboard/schedules/create"
+        >
+            <Card>
+                <CardHeader>
+                    <CardTitle>All Schedules</CardTitle>
+                </CardHeader>
+                <CardContent>
                     {isLoading ? (
-                        <div className="p-8 text-center">Loading schedules...</div>
-                    ) : filteredAndSortedSchedules.length === 0 ? (
-                        <div className="p-8 text-center flex flex-col items-center">
-                            {searchQuery || dayFilter.length > 0 ? (
-                                <>
-                                    <Calendar className="h-16 w-16 text-muted-foreground opacity-50 mb-4" />
-                                    <h3 className="text-lg font-semibold">No schedules found</h3>
-                                    <p className="text-muted-foreground mt-1">Try changing your search query or filters.</p>
-                                </>
-                            ) : (
-                                <>
-                                    <AlertCircle className="h-16 w-16 text-muted-foreground opacity-50 mb-4" />
-                                    <h3 className="text-lg font-semibold">No schedules available</h3>
-                                    <p className="text-muted-foreground mt-1">Get started by creating your first schedule.</p>
-                                    <Button className="mt-4" asChild>
-                                        <Link href="/dashboard/schedules/new">
-                                            <PlusCircle className="mr-2 h-4 w-4" />
-                                            Add Schedule
-                                        </Link>
-                                    </Button>
-                                </>
-                            )}
+                        <div className="flex justify-center p-4">Loading schedules...</div>
+                    ) : schedules.length === 0 ? (
+                        <div className="text-center py-6">
+                            <p className="text-muted-foreground">No schedules found</p>
                         </div>
                     ) : (
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>
-                                        <Button
-                                            variant="ghost"
-                                            onClick={() => toggleSort('title')}
-                                            className="p-0 hover:bg-transparent"
-                                        >
-                                            Title
-                                            <ChevronDown className={`ml-2 h-4 w-4 ${sortField === 'title' ? 'opacity-100' : 'opacity-50'} 
-                                            ${sortField === 'title' && sortDirection === 'desc' ? 'rotate-180' : ''}`} />
-                                        </Button>
-                                    </TableHead>
-                                    <TableHead>
-                                        <Button
-                                            variant="ghost"
-                                            onClick={() => toggleSort('day')}
-                                            className="p-0 hover:bg-transparent"
-                                        >
-                                            Day
-                                            <ChevronDown className={`ml-2 h-4 w-4 ${sortField === 'day' ? 'opacity-100' : 'opacity-50'} 
-                                            ${sortField === 'day' && sortDirection === 'desc' ? 'rotate-180' : ''}`} />
-                                        </Button>
-                                    </TableHead>
+                                    <TableHead>Title</TableHead>
                                     <TableHead>Time</TableHead>
-                                    <TableHead>
-                                        <Button
-                                            variant="ghost"
-                                            onClick={() => toggleSort('room')}
-                                            className="p-0 hover:bg-transparent"
-                                        >
-                                            Room
-                                            <ChevronDown className={`ml-2 h-4 w-4 ${sortField === 'room' ? 'opacity-100' : 'opacity-50'} 
-                                            ${sortField === 'room' && sortDirection === 'desc' ? 'rotate-180' : ''}`} />
-                                        </Button>
-                                    </TableHead>
-                                    <TableHead>
-                                        <Button
-                                            variant="ghost"
-                                            onClick={() => toggleSort('user')}
-                                            className="p-0 hover:bg-transparent"
-                                        >
-                                            User
-                                            <ChevronDown className={`ml-2 h-4 w-4 ${sortField === 'user' ? 'opacity-100' : 'opacity-50'} 
-                                            ${sortField === 'user' && sortDirection === 'desc' ? 'rotate-180' : ''}`} />
-                                        </Button>
-                                    </TableHead>
-                                    <TableHead className="w-[80px]">Actions</TableHead>
+                                    <TableHead>Location</TableHead>
+                                    <TableHead>Status</TableHead>
+                                    <TableHead>Organizer</TableHead>
+                                    <TableHead className="text-right">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {paginatedSchedules.map(schedule => (
+                                {schedules.map((schedule) => (
                                     <TableRow key={schedule.id}>
-                                        <TableCell className="font-medium">
-                                            {schedule.title}
-                                        </TableCell>
-                                        <TableCell className="capitalize">
-                                            {schedule.dayOfWeek}
+                                        <TableCell className="font-medium">{schedule.title}</TableCell>
+                                        <TableCell>
+                                            <div className="flex flex-col">
+                                                <span className="flex items-center text-xs text-muted-foreground mb-1">
+                                                    <Calendar className="h-3 w-3 mr-1" />
+                                                    {new Date(schedule.startTime).toLocaleDateString()}
+                                                </span>
+                                                <span className="flex items-center text-xs">
+                                                    <Clock className="h-3 w-3 mr-1" />
+                                                    {new Date(schedule.startTime).toLocaleTimeString()} - {new Date(schedule.endTime).toLocaleTimeString()}
+                                                </span>
+                                            </div>
                                         </TableCell>
                                         <TableCell>
-                                            {format(new Date(schedule.startTime), 'h:mm a')} - {format(new Date(schedule.endTime), 'h:mm a')}
+                                            <div>
+                                                <div>{schedule.room.name || 'Room'} ({schedule.room.number || 'N/A'})</div>
+                                                <div className="text-xs text-muted-foreground">{schedule.room.floor?.building?.name || 'N/A'}</div>
+                                            </div>
                                         </TableCell>
                                         <TableCell>
-                                            {schedule.room.name || 'Room'} ({schedule.room.number || 'N/A'})
+                                            <Badge variant={getStatusBadge(schedule.status)}>
+                                                {schedule.status}
+                                            </Badge>
                                         </TableCell>
-                                        <TableCell>
-                                            <Link href={`/dashboard/users/${schedule.userId}/schedules`} className="hover:underline">
-                                                {formatUserName(schedule.user)}
-                                            </Link>
-                                        </TableCell>
-                                        <TableCell>
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                asChild
-                                            >
-                                                <Link href={`/dashboard/users/${schedule.userId}/schedules`}>
-                                                    View
-                                                </Link>
-                                            </Button>
+                                        <TableCell>{schedule.organizer}</TableCell>
+                                        <TableCell className="text-right">
+                                            <ResourceActionButtons
+                                                resourceType="schedules"
+                                                showDelete={true}
+                                                showEdit={true}
+                                                onDelete={() => handleDeleteSchedule(schedule.id)}
+                                                editHref={`/dashboard/schedules/${schedule.id}/edit`}
+                                            />
                                         </TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>
                         </Table>
                     )}
-                </div>
-
-                {/* Pagination */}
-                <div className="flex items-center justify-between px-4 py-4 border-t">
-                    <div className="flex-1 text-sm text-muted-foreground">
-                        <span className="font-medium">{filteredAndSortedSchedules.length} schedules</span>
-                    </div>
-                    <div className="flex items-center space-x-6 lg:space-x-8">
-                        <div className="flex items-center space-x-2">
-                            <p className="text-sm font-medium">Rows per page</p>
-                            <select
-                                className="h-8 w-[70px] rounded-md border border-input bg-transparent px-2 py-1 text-sm"
-                                value={pageSize}
-                                onChange={e => {
-                                    setPageSize(Number(e.target.value));
-                                    setPageIndex(0);
-                                }}
-                            >
-                                {[ 5, 10, 20, 30, 40, 50 ].map(size => (
-                                    <option key={size} value={size}>
-                                        {size}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                        <div className="flex items-center justify-center text-sm font-medium">
-                            Page {pageIndex + 1} of {Math.max(1, pageCount)}
-                        </div>
-                        <div className="flex items-center space-x-2">
-                            <Button
-                                variant="outline"
-                                className="h-8 w-8 p-0"
-                                onClick={() => setPageIndex(0)}
-                                disabled={pageIndex === 0}
-                                aria-label="Go to first page"
-                            >
-                                <span className="sr-only">Go to first page</span>
-                                <span>«</span>
-                            </Button>
-                            <Button
-                                variant="outline"
-                                className="h-8 w-8 p-0"
-                                onClick={() => setPageIndex(pageIndex - 1)}
-                                disabled={pageIndex === 0}
-                                aria-label="Go to previous page"
-                            >
-                                <span className="sr-only">Go to previous page</span>
-                                <span>‹</span>
-                            </Button>
-                            <Button
-                                variant="outline"
-                                className="h-8 w-8 p-0"
-                                onClick={() => setPageIndex(pageIndex + 1)}
-                                disabled={pageIndex >= pageCount - 1}
-                                aria-label="Go to next page"
-                            >
-                                <span className="sr-only">Go to next page</span>
-                                <span>›</span>
-                            </Button>
-                            <Button
-                                variant="outline"
-                                className="h-8 w-8 p-0"
-                                onClick={() => setPageIndex(pageCount - 1)}
-                                disabled={pageIndex >= pageCount - 1}
-                                aria-label="Go to last page"
-                            >
-                                <span className="sr-only">Go to last page</span>
-                                <span>»</span>
-                            </Button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+                </CardContent>
+            </Card>
+        </ResourcePermissionWrapper>
     );
 } 

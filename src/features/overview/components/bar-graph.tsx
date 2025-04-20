@@ -132,7 +132,7 @@ const chartConfig = {
 } satisfies ChartConfig;
 
 export function BarGraph() {
-  const [activeChart, setActiveChart] =
+  const [ activeChart, setActiveChart ] =
     React.useState<keyof typeof chartConfig>('desktop');
 
   const total = React.useMemo(
@@ -143,17 +143,17 @@ export function BarGraph() {
     []
   );
 
-  const [isClient, setIsClient] = React.useState(false);
+  const [ isClient, setIsClient ] = React.useState(false);
 
   React.useEffect(() => {
     setIsClient(true);
   }, []);
 
   React.useEffect(() => {
-    if (activeChart === 'error') {
+    if (isClient && activeChart === 'error') {
       throw new Error('Mocking Error');
     }
-  }, [activeChart]);
+  }, [ activeChart, isClient ]);
 
   if (!isClient) {
     return null;
@@ -172,9 +172,9 @@ export function BarGraph() {
           </CardDescription>
         </div>
         <div className='flex'>
-          {['desktop', 'mobile', 'error'].map((key) => {
+          {[ 'desktop', 'mobile', 'error' ].map((key) => {
             const chart = key as keyof typeof chartConfig;
-            if (!chart || total[key as keyof typeof total] === 0) return null;
+            if (!chart || total[ key as keyof typeof total ] === 0) return null;
             return (
               <button
                 key={chart}
@@ -183,10 +183,10 @@ export function BarGraph() {
                 onClick={() => setActiveChart(chart)}
               >
                 <span className='text-muted-foreground text-xs'>
-                  {chartConfig[chart].label}
+                  {chartConfig[ chart ].label}
                 </span>
                 <span className='text-lg leading-none font-bold sm:text-3xl'>
-                  {total[key as keyof typeof total]?.toLocaleString()}
+                  {total[ key as keyof typeof total ]?.toLocaleString()}
                 </span>
               </button>
             );
@@ -253,7 +253,7 @@ export function BarGraph() {
             <Bar
               dataKey={activeChart}
               fill='url(#fillBar)'
-              radius={[4, 4, 0, 0]}
+              radius={[ 4, 4, 0, 0 ]}
             />
           </BarChart>
         </ChartContainer>
