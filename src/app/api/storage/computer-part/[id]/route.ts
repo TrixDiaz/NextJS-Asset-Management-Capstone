@@ -2,13 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
 export async function PATCH(
-    req: NextRequest,
-    { params }: { params: { id: string } }
+    request: NextRequest,
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const id = params.id;
-        const data = await req.json();
-        console.log("Update computer part data:", data);
+        const { id } = await params;
+        const data = await request.json();
         const { name, subType, quantity, unit, remarks, serialNumbers } = data;
 
         // Check if storage item exists
@@ -52,17 +51,14 @@ export async function PATCH(
                 RETURNING *;
             `;
 
-            console.log("Updated computer part:", updatedItem);
             return NextResponse.json(updatedItem);
         } catch (prismaError) {
-            console.error("Database error:", prismaError);
             return NextResponse.json(
                 { error: 'Database error updating computer part', details: String(prismaError) },
                 { status: 500 }
             );
         }
     } catch (error) {
-        console.error('Error updating computer part:', error);
         return NextResponse.json(
             { error: 'Failed to update computer part', details: String(error) },
             { status: 500 }
