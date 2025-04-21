@@ -4,10 +4,10 @@ import { prisma } from '@/lib/prisma';
 // GET all schedules for a room
 export async function GET(
   req: NextRequest,
-  context: { params: { id: string } }
+  { params }: { params: { id: string } }
 ) {
   try {
-    const { id } = context.params;
+    const id = params.id;
 
     // Check if room exists
     const roomExists = await prisma.room.findUnique({

@@ -3,10 +3,10 @@ import { prisma } from '@/lib/prisma';
 
 export async function PATCH(
     request: NextRequest,
-    context: { params: { id: string } }
+    { params }: { params: { id: string } }
 ) {
     try {
-        const { id } = context.params;
+        const id = params.id;
         const data = await request.json();
         const { name, subType, quantity, unit, remarks, serialNumbers } = data;
 
@@ -68,10 +68,10 @@ export async function PATCH(
 
 export async function GET(
     req: NextRequest,
-    context: { params: { id: string } }
+    { params }: { params: { id: string } }
 ) {
     try {
-        const { id } = context.params;
+        const id = params.id;
 
         const computerPart = await prisma.storageItem.findUnique({
             where: { id, itemType: 'COMPUTER_PART' }
