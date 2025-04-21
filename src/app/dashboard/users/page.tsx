@@ -120,7 +120,7 @@ export default function UsersPage() {
 
   // Get array of selected IDs
   const selectedUserIds = Object.entries(selectedUsers)
-    .filter(([_, isSelected]) => isSelected)
+    .filter(([isSelected]) => isSelected)
     .map(([id]) => id);
 
   // Fetch users data
