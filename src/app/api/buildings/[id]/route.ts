@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+type Params = {
+  params: {
+    id: string;
+  };
+};
+
 // GET a specific building
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(request: NextRequest, context: Params) {
   try {
-    const id = params.id;
+    const id = context.params.id;
 
     // @ts-ignore - Using type assertion to bypass TypeScript error
     const building = await (prisma.building as any).findUnique({
@@ -42,12 +45,9 @@ export async function GET(
 }
 
 // PATCH to update a building
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function PATCH(request: NextRequest, context: Params) {
   try {
-    const id = params.id;
+    const id = context.params.id;
     const data = await request.json();
     const { name, code, address } = data;
 
@@ -71,12 +71,9 @@ export async function PATCH(
 }
 
 // DELETE a building
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function DELETE(request: NextRequest, context: Params) {
   try {
-    const id = params.id;
+    const id = context.params.id;
 
     // @ts-ignore - Using type assertion to bypass TypeScript error
     await (prisma.building as any).delete({
