@@ -92,9 +92,17 @@ export default function TicketDetailView({ id }: TicketDetailViewProps) {
       setError(null);
 
       try {
-        const response = await fetch(`/api/tickets/${id}`);
+        const response = await fetch(`/api/tickets/${id}`, {
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
 
         if (!response.ok) {
+          if (response.status === 401) {
+            throw new Error('Authentication error - please sign in again');
+          }
           throw new Error('Failed to fetch ticket details');
         }
 
@@ -102,7 +110,7 @@ export default function TicketDetailView({ id }: TicketDetailViewProps) {
         setTicket(data);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An error occurred');
-        console.error('Error fetching ticket:', err);
+        console.error('Error fetching ticket details:', err);
       } finally {
         setLoading(false);
       }
@@ -137,10 +145,14 @@ export default function TicketDetailView({ id }: TicketDetailViewProps) {
         headers: {
           'Content-Type': 'application/json'
         },
+        credentials: 'include',
         body: JSON.stringify({ status })
       });
 
       if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Authentication error - please sign in again');
+        }
         throw new Error('Failed to update ticket status');
       }
 
@@ -170,10 +182,14 @@ export default function TicketDetailView({ id }: TicketDetailViewProps) {
         headers: {
           'Content-Type': 'application/json'
         },
+        credentials: 'include',
         body: JSON.stringify({ status: 'IN_PROGRESS' })
       });
 
       if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Authentication error - please sign in again');
+        }
         throw new Error('Failed to assign ticket');
       }
 

@@ -1,19 +1,43 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
-const isProtectedRoute = createRouteMatcher([ '/dashboard(.*)' ]);
+// Protect both dashboard and API routes
+const isProtectedRoute = createRouteMatcher([
+  '/dashboard(.*)',
+  '/api/tickets(.*)',
+  '/api/users(.*)'
+]);
 
 export default clerkMiddleware(async (auth, req: NextRequest) => {
   try {
-    // Protect dashboard routes
-    if (isProtectedRoute(req)) await auth.protect();
+    // Get the current path
+    const path = new URL(req.url).pathname;
+
+    // Check if it's an API route
+    const isApiRoute = path.startsWith('/api/');
+
+    // Protect routes
+    if (isProtectedRoute(req)) {
+      await auth.protect();
+
+      // Log authentication state for debugging
+      console.log(`Protected route access: ${path}`);
+    }
 
     return;
   } catch (error) {
-    // Just log to console in case of errors
-    console.error(`Middleware error:`, error);
+    // Log error details
+    console.error(`Middleware auth error for ${req.url}:`, error);
 
-    // Re-throw the error to let Clerk handle it
+    // For API routes, return a JSON error instead of redirecting
+    if (req.url.includes('/api/')) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
+    // Otherwise, let Clerk handle it (redirect to sign-in)
     throw error;
   }
 });

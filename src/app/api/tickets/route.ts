@@ -16,8 +16,15 @@ const ticketCreateSchema = z.object({
 export async function GET(req: NextRequest) {
   try {
     const { userId } = await auth();
+
+    // Log authentication details for debugging
+    console.log('Auth check result:', { userId, isAuthenticated: !!userId });
+
     if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json(
+        { error: 'Unauthorized - Please sign in' },
+        { status: 401 }
+      );
     }
 
     const dbUser = await db.user.findUnique({
@@ -25,8 +32,17 @@ export async function GET(req: NextRequest) {
       select: { role: true, id: true }
     });
 
+    console.log('Database user check:', {
+      userId,
+      dbUserId: dbUser?.id,
+      role: dbUser?.role
+    });
+
     if (!dbUser) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      return NextResponse.json(
+        { error: 'User not found in database - Please contact support' },
+        { status: 404 }
+      );
     }
 
     const { searchParams } = new URL(req.url);

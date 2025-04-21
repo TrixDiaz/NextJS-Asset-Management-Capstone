@@ -161,8 +161,8 @@ export default function UpdateLocationDialog({
   };
 
   const handleRoomChange = (roomId: string) => {
-    form.setValue('roomId', roomId);
-    setSelectedRoomId(roomId);
+    form.setValue('roomId', roomId === 'none' ? null : roomId);
+    setSelectedRoomId(roomId === 'none' ? null : roomId);
     // Clear asset selection when room changes
     form.setValue('assetId', undefined);
   };
@@ -176,8 +176,8 @@ export default function UpdateLocationDialog({
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          roomId: values.roomId,
-          assetId: values.assetId
+          roomId: values.roomId === 'none' ? null : values.roomId,
+          assetId: values.assetId === 'none' ? null : values.assetId
         })
       });
 
@@ -229,7 +229,7 @@ export default function UpdateLocationDialog({
                   <FormLabel>Room</FormLabel>
                   <Select
                     onValueChange={(value) => handleRoomChange(value)}
-                    value={field.value || ''}
+                    value={field.value || 'none'}
                   >
                     <FormControl>
                       <SelectTrigger>
@@ -237,7 +237,7 @@ export default function UpdateLocationDialog({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value=''>None</SelectItem>
+                      <SelectItem value='none'>None</SelectItem>
                       {loadingRooms ? (
                         <div className='flex items-center justify-center py-2'>
                           <Loader2 className='mr-2 h-4 w-4 animate-spin' />
@@ -272,7 +272,7 @@ export default function UpdateLocationDialog({
                   <FormLabel>Asset</FormLabel>
                   <Select
                     onValueChange={field.onChange}
-                    value={field.value || ''}
+                    value={field.value || 'none'}
                     disabled={!selectedRoomId}
                   >
                     <FormControl>
@@ -287,7 +287,7 @@ export default function UpdateLocationDialog({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value=''>None</SelectItem>
+                      <SelectItem value='none'>None</SelectItem>
                       {loadingAssets ? (
                         <div className='flex items-center justify-center py-2'>
                           <Loader2 className='mr-2 h-4 w-4 animate-spin' />
