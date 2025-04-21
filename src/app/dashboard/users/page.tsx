@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
+import { checkRole } from '@/utils/roles';
 import { Button } from '@/components/ui/button';
 import {
   UserPlus,
@@ -76,8 +78,10 @@ type SortDirection = 'asc' | 'desc' | null;
 type SortField = 'name' | 'username' | 'email' | 'role' | 'createdAt';
 
 export default function UsersPage() {
+  const router = useRouter();
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isAuthorized, setIsAuthorized] = useState(true);
   const [selectedUsers, setSelectedUsers] = useState<Record<string, boolean>>(
     {}
   );
@@ -115,12 +119,35 @@ export default function UsersPage() {
     role: ''
   });
 
+  // Check for admin role
+  useEffect(() => {
+    const verifyAdminRole = async () => {
+      try {
+        const response = await fetch(
+          '/api/auth/check-role?role=admin,moderator'
+        );
+        const data = await response.json();
+
+        if (!response.ok || !data.hasRole) {
+          setIsAuthorized(false);
+          router.push('/');
+        }
+      } catch (error) {
+        console.error('Failed to verify admin role:', error);
+        setIsAuthorized(false);
+        router.push('/');
+      }
+    };
+
+    verifyAdminRole();
+  }, [router]);
+
   // Calculate selected count
   const selectedCount = Object.values(selectedUsers).filter(Boolean).length;
 
   // Get array of selected IDs
   const selectedUserIds = Object.entries(selectedUsers)
-    .filter(([isSelected]) => isSelected)
+    .filter(([_, isSelected]) => isSelected)
     .map(([id]) => id);
 
   // Fetch users data

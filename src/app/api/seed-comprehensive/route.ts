@@ -86,7 +86,7 @@ export async function GET(_req: NextRequest) {
     }
 
     // Create additional users (teachers, staff)
-    const userRoles = ['teacher', 'staff', 'technician', 'member'];
+    const userRoles = ['admin', 'moderator', 'member'];
     const userFirstNames = [
       'John',
       'Jane',

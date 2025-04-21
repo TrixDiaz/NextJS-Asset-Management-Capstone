@@ -4,8 +4,19 @@ import UserReports from './user-reports';
 import BuildingReports from './building-reports';
 import AssetReports from './asset-reports';
 import StorageReports from './storage-reports';
+import { checkRole } from '@/utils/roles';
+import { redirect } from 'next/navigation';
 
 export default async function ReportsPage() {
+  // Check if user has admin or moderator role
+  const isAdmin = await checkRole('admin');
+  const isModerator = await checkRole('moderator');
+
+  // Redirect if user doesn't have required roles
+  if (!isAdmin && !isModerator) {
+    redirect('/');
+  }
+
   return (
     <div className='h-[calc(100vh-5rem)] overflow-auto'>
       <div className='p-6'>

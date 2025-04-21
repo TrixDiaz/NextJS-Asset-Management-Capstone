@@ -12,6 +12,8 @@ import {
   TableRow
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { checkRole } from '@/utils/roles';
+import { redirect } from 'next/navigation';
 
 // Define StorageItem type
 type StorageItem = {
@@ -27,6 +29,15 @@ type StorageItem = {
 
 export default async function StorageInventoryPage() {
   try {
+    // Check if user has admin or moderator role
+    const isAdmin = await checkRole('admin');
+    const isModerator = await checkRole('moderator');
+
+    // Redirect if user doesn't have required roles
+    if (!isAdmin && !isModerator) {
+      redirect('/');
+    }
+
     // Check if the prisma client is properly initialized
     if (!prisma || !prisma.storageItem) {
       throw new Error(

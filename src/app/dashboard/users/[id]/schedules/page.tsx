@@ -97,7 +97,7 @@ const daysOfWeek = [
   'saturday'
 ];
 
-const userRoles = ['admin', 'manager', 'user', 'guest'];
+const userRoles = ['admin', 'moderator', 'member'];
 
 // Time options for dropdown with 30 min intervals
 const generateTimeOptions = () => {
