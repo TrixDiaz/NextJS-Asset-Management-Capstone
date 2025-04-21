@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 
 // GET a specific building
 export async function GET(
-  request: Request,
+  req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
@@ -43,12 +43,12 @@ export async function GET(
 
 // PATCH to update a building
 export async function PATCH(
-  request: Request,
+  req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
     const { id } = params;
-    const data = await request.json();
+    const data = await req.json();
     const { name, code, address } = data;
 
     // @ts-ignore - Using type assertion to bypass TypeScript error
@@ -72,7 +72,7 @@ export async function PATCH(
 
 // DELETE a building
 export async function DELETE(
-  request: Request,
+  req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {

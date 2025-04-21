@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 
 // GET all schedules for a room
 export async function GET(
-  request: Request,
+  req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {

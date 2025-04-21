@@ -67,9 +67,28 @@ export async function PATCH(
 }
 
 export async function GET(
-    request: Request,
+    req: NextRequest,
     { params }: { params: { id: string } }
 ) {
-    // ... existing code ...
-    // Update to use params.id instead of await params.id
+    try {
+        const { id } = params;
+
+        const computerPart = await prisma.storageItem.findUnique({
+            where: { id, itemType: 'COMPUTER_PART' }
+        });
+
+        if (!computerPart) {
+            return NextResponse.json(
+                { error: 'Computer part not found' },
+                { status: 404 }
+            );
+        }
+
+        return NextResponse.json(computerPart);
+    } catch (error) {
+        return NextResponse.json(
+            { error: 'Failed to fetch computer part' },
+            { status: 500 }
+        );
+    }
 } 

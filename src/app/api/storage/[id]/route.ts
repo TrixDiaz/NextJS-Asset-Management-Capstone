@@ -3,11 +3,11 @@ import { prisma } from '@/lib/prisma';
 
 // GET a specific storage item
 export async function GET(
-    request: Request,
+    req: NextRequest,
     { params }: { params: { id: string } }
 ) {
     try {
-        const { id } = await params;
+        const { id } = params;
 
         // Using any because Prisma types might not be updated
         const storageItem = await (prisma.storageItem as any).findUnique({
@@ -45,12 +45,12 @@ export async function GET(
 
 // PATCH to update a storage item
 export async function PATCH(
-    request: Request,
+    req: NextRequest,
     { params }: { params: { id: string } }
 ) {
     try {
         const { id } = params;
-        const data = await request.json();
+        const data = await req.json();
         console.log("Update data received:", data);
         const { name, itemType, subType, quantity, unit, remarks, serialNumbers } = data;
 
@@ -105,7 +105,7 @@ export async function PATCH(
 
 // DELETE a storage item
 export async function DELETE(
-    request: Request,
+    req: NextRequest,
     { params }: { params: { id: string } }
 ) {
     try {
