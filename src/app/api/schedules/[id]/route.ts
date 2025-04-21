@@ -28,10 +28,10 @@ const scheduleUpdateSchema = z.object({
 // GET a single schedule
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
-    const { id } = params;
+    const { id } = context.params;
 
     const schedule = await prisma.schedule.findUnique({
       where: {
@@ -57,10 +57,10 @@ export async function GET(
 // PATCH update a schedule
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
-    const { id } = params;
+    const { id } = context.params;
     const body = await req.json();
 
     // Check if schedule exists
@@ -113,10 +113,10 @@ export async function PATCH(
 // DELETE a schedule
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
-    const { id } = params;
+    const { id } = context.params;
 
     // Check if schedule exists
     const existingSchedule = await prisma.schedule.findUnique({

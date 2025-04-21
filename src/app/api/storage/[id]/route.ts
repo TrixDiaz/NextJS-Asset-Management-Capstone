@@ -4,10 +4,10 @@ import { prisma } from '@/lib/prisma';
 // GET a specific storage item
 export async function GET(
     req: NextRequest,
-    { params }: { params: { id: string } }
+    context: { params: { id: string } }
 ) {
     try {
-        const { id } = params;
+        const { id } = context.params;
 
         // Using any because Prisma types might not be updated
         const storageItem = await (prisma.storageItem as any).findUnique({
@@ -46,10 +46,10 @@ export async function GET(
 // PATCH to update a storage item
 export async function PATCH(
     req: NextRequest,
-    { params }: { params: { id: string } }
+    context: { params: { id: string } }
 ) {
     try {
-        const { id } = params;
+        const { id } = context.params;
         const data = await req.json();
         console.log("Update data received:", data);
         const { name, itemType, subType, quantity, unit, remarks, serialNumbers } = data;
@@ -106,10 +106,10 @@ export async function PATCH(
 // DELETE a storage item
 export async function DELETE(
     req: NextRequest,
-    { params }: { params: { id: string } }
+    context: { params: { id: string } }
 ) {
     try {
-        const { id } = params;
+        const { id } = context.params;
 
         // Check if storage item exists
         const existingItem = await prisma.storageItem.findUnique({

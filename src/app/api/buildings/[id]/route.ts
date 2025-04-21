@@ -4,10 +4,10 @@ import { prisma } from '@/lib/prisma';
 // GET a specific building
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
-    const { id } = params;
+    const { id } = context.params;
 
     // @ts-ignore - Using type assertion to bypass TypeScript error
     const building = await (prisma.building as any).findUnique({
@@ -44,10 +44,10 @@ export async function GET(
 // PATCH to update a building
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
-    const { id } = params;
+    const { id } = context.params;
     const data = await req.json();
     const { name, code, address } = data;
 
@@ -73,10 +73,10 @@ export async function PATCH(
 // DELETE a building
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
-    const { id } = params;
+    const { id } = context.params;
 
     // @ts-ignore - Using type assertion to bypass TypeScript error
     await (prisma.building as any).delete({
