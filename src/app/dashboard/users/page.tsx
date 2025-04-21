@@ -431,12 +431,10 @@ export default function UsersPage() {
     switch (role) {
       case 'admin':
         return 'destructive';
-      case 'manager':
+      case 'moderator':
         return 'default';
-      case 'user':
+      case 'member':
         return 'secondary';
-      case 'guest':
-        return 'outline';
       default:
         return 'secondary';
     }
@@ -592,22 +590,16 @@ export default function UsersPage() {
                       Admin
                     </DropdownMenuCheckboxItem>
                     <DropdownMenuCheckboxItem
-                      checked={roleFilter.includes('manager')}
-                      onCheckedChange={() => toggleRoleFilter('manager')}
+                      checked={roleFilter.includes('moderator')}
+                      onCheckedChange={() => toggleRoleFilter('moderator')}
                     >
-                      Manager
+                      Moderator
                     </DropdownMenuCheckboxItem>
                     <DropdownMenuCheckboxItem
-                      checked={roleFilter.includes('user')}
-                      onCheckedChange={() => toggleRoleFilter('user')}
+                      checked={roleFilter.includes('member')}
+                      onCheckedChange={() => toggleRoleFilter('member')}
                     >
-                      User
-                    </DropdownMenuCheckboxItem>
-                    <DropdownMenuCheckboxItem
-                      checked={roleFilter.includes('guest')}
-                      onCheckedChange={() => toggleRoleFilter('guest')}
-                    >
-                      Guest
+                      Member
                     </DropdownMenuCheckboxItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
