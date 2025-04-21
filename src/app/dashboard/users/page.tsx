@@ -140,8 +140,8 @@ export default function UsersPage() {
           setIsLoading(false);
         }
       } catch (error) {
-        console.error('Error loading users:', error);
         if (isMounted) {
+          toast('Error loading users');
           setIsLoading(false);
         }
       }
@@ -297,15 +297,14 @@ export default function UsersPage() {
       setUsers(data);
       setSelectedUsers({});
       setShowDeleteDialog(false);
-      toast.success(`Successfully deleted ${selectedUserIds.length} users`);
+      toast(`Successfully deleted ${selectedUserIds.length} users`);
 
       // Reset to first page if current page is now empty
       if (pageIndex > 0 && pageIndex >= Math.ceil(data.length / pageSize)) {
         setPageIndex(0);
       }
     } catch (error) {
-      console.error('Error deleting users:', error);
-      toast.error('Failed to delete users');
+      toast('Failed to delete users');
     }
   };
 
@@ -339,9 +338,9 @@ export default function UsersPage() {
       setUsers(data);
       setSelectedUsers({});
       setShowRoleDialog(false);
+      toast(`Role updated for ${selectedUserIds.length} users`);
     } catch (error) {
-      console.error('Error updating users:', error);
-      toast.error('Failed to update users');
+      toast('Failed to update users');
     }
   };
 
@@ -393,9 +392,10 @@ export default function UsersPage() {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+
+      toast('Users exported successfully');
     } catch (error) {
-      console.error('Error exporting users:', error);
-      toast.error('Failed to export users');
+      toast('Failed to export users');
     }
   };
 
@@ -458,10 +458,9 @@ export default function UsersPage() {
       setUsers(data);
       setUserToDelete(null);
       setShowDeleteUserDialog(false);
-      toast.success('User deleted successfully');
+      toast('User deleted successfully');
     } catch (error) {
-      console.error('Error deleting user:', error);
-      toast.error('Failed to delete user');
+      toast('Failed to delete user');
     }
   };
 
@@ -514,10 +513,9 @@ export default function UsersPage() {
       // Close the dialog and reset state
       setUserToEdit(null);
       setShowEditDialog(false);
-      toast.success('User updated successfully');
+      toast('User updated successfully');
     } catch (error) {
-      console.error('Error updating user:', error);
-      toast.error('Failed to update user');
+      toast('Failed to update user');
     }
   };
 
