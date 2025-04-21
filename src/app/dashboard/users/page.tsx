@@ -141,7 +141,7 @@ export default function UsersPage() {
         }
       } catch (error) {
         if (isMounted) {
-          toast('Error loading users');
+          toast.error('Error loading users');
           setIsLoading(false);
         }
       }
@@ -297,14 +297,14 @@ export default function UsersPage() {
       setUsers(data);
       setSelectedUsers({});
       setShowDeleteDialog(false);
-      toast(`Successfully deleted ${selectedUserIds.length} users`);
+      toast.success(`Successfully deleted ${selectedUserIds.length} users`);
 
       // Reset to first page if current page is now empty
       if (pageIndex > 0 && pageIndex >= Math.ceil(data.length / pageSize)) {
         setPageIndex(0);
       }
     } catch (error) {
-      toast('Failed to delete users');
+      toast.error('Failed to delete users');
     }
   };
 
@@ -338,9 +338,9 @@ export default function UsersPage() {
       setUsers(data);
       setSelectedUsers({});
       setShowRoleDialog(false);
-      toast(`Role updated for ${selectedUserIds.length} users`);
+      toast.success(`Role updated for ${selectedUserIds.length} users`);
     } catch (error) {
-      toast('Failed to update users');
+      toast.error('Failed to update users');
     }
   };
 
@@ -393,9 +393,9 @@ export default function UsersPage() {
       link.click();
       document.body.removeChild(link);
 
-      toast('Users exported successfully');
+      toast.success('Users exported successfully');
     } catch (error) {
-      toast('Failed to export users');
+      toast.error('Failed to export users');
     }
   };
 
@@ -458,9 +458,9 @@ export default function UsersPage() {
       setUsers(data);
       setUserToDelete(null);
       setShowDeleteUserDialog(false);
-      toast('User deleted successfully');
+      toast.success('User deleted successfully');
     } catch (error) {
-      toast('Failed to delete user');
+      toast.error('Failed to delete user');
     }
   };
 
@@ -513,9 +513,9 @@ export default function UsersPage() {
       // Close the dialog and reset state
       setUserToEdit(null);
       setShowEditDialog(false);
-      toast('User updated successfully');
+      toast.success('User updated successfully');
     } catch (error) {
-      toast('Failed to update user');
+      toast.error('Failed to update user');
     }
   };
 
