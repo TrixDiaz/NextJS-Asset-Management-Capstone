@@ -10,7 +10,7 @@ type BreadcrumbItem = {
 
 // This allows to add custom title as well
 const routeMapping: Record<string, BreadcrumbItem[]> = {
-  '/dashboard': [ { title: 'Dashboard', link: '/dashboard' } ],
+  '/dashboard': [{ title: 'Dashboard', link: '/dashboard' }],
   '/dashboard/employee': [
     { title: 'Dashboard', link: '/dashboard' },
     { title: 'Employee', link: '/dashboard/employee' }
@@ -43,7 +43,11 @@ const getEntityNameFromStorage = (type: string, id: string): string | null => {
 };
 
 // Helper function to set entity details in localStorage
-export const setEntityNameInStorage = (type: string, id: string, name: string): void => {
+export const setEntityNameInStorage = (
+  type: string,
+  id: string,
+  name: string
+): void => {
   try {
     if (!isBrowser()) return;
 
@@ -56,8 +60,8 @@ export const setEntityNameInStorage = (type: string, id: string, name: string): 
 
 export function useBreadcrumbs() {
   const pathname = usePathname();
-  const [ breadcrumbs, setBreadcrumbs ] = useState<BreadcrumbItem[]>([]);
-  const [ isClient, setIsClient ] = useState(false);
+  const [breadcrumbs, setBreadcrumbs] = useState<BreadcrumbItem[]>([]);
+  const [isClient, setIsClient] = useState(false);
 
   // Set isClient to true on mount
   useEffect(() => {
@@ -70,8 +74,8 @@ export function useBreadcrumbs() {
 
     const generateBreadcrumbs = async () => {
       // Check if we have a custom mapping for this exact path
-      if (routeMapping[ pathname ]) {
-        setBreadcrumbs(routeMapping[ pathname ]);
+      if (routeMapping[pathname]) {
+        setBreadcrumbs(routeMapping[pathname]);
         return;
       }
 
@@ -80,17 +84,17 @@ export function useBreadcrumbs() {
       const newBreadcrumbs: BreadcrumbItem[] = [];
 
       // Add Dashboard as the first item if we're in a dashboard route
-      if (segments[ 0 ] === 'dashboard') {
+      if (segments[0] === 'dashboard') {
         newBreadcrumbs.push({ title: 'Dashboard', link: '/dashboard' });
       }
 
       // Process other segments
       for (let i = 1; i < segments.length; i++) {
-        const segment = segments[ i ];
+        const segment = segments[i];
         const path = `/${segments.slice(0, i + 1).join('/')}`;
 
         // Check if this segment is an ID (for buildings, floors, rooms)
-        const prevSegment = segments[ i - 1 ];
+        const prevSegment = segments[i - 1];
 
         if (prevSegment === 'buildings' && i === segments.length - 1) {
           // This is a building ID
@@ -131,7 +135,7 @@ export function useBreadcrumbs() {
     };
 
     generateBreadcrumbs();
-  }, [ pathname, isClient ]);
+  }, [pathname, isClient]);
 
   return breadcrumbs;
 }

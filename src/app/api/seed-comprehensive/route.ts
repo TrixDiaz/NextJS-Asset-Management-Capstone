@@ -1,12 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import {
-  AssetStatus,
-  AssetType,
-  RoomType,
-  TicketPriority,
-  TicketStatus
-} from '@prisma/client';
+import { AssetStatus, AssetType, RoomType } from '@prisma/client';
 
 // Helper to generate random integers between min and max (inclusive)
 const randomInt = (min: number, max: number): number => {
@@ -45,7 +39,7 @@ const daysOfWeek = [
   'saturday'
 ];
 
-export async function GET(req: NextRequest) {
+export async function GET(_req: NextRequest) {
   try {
     console.log('Starting comprehensive database seeding...');
 

@@ -1,29 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
-import { auth } from '@clerk/nextjs/server';
-
-// Schema for schedule update
-const scheduleUpdateSchema = z.object({
-  title: z.string().min(1).optional(),
-  description: z.string().optional().nullable(),
-  startTime: z
-    .string()
-    .refine((val) => !isNaN(Date.parse(val)), {
-      message: 'Start time must be a valid date string'
-    })
-    .optional(),
-  endTime: z
-    .string()
-    .refine((val) => !isNaN(Date.parse(val)), {
-      message: 'End time must be a valid date string'
-    })
-    .optional(),
-  dayOfWeek: z
-    .enum([ 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday' ])
-    .optional(),
-  roomId: z.string().optional()
-});
 
 // GET a single schedule
 export async function GET(
@@ -44,13 +21,19 @@ export async function GET(
     });
 
     if (!schedule) {
-      return NextResponse.json({ error: 'Schedule not found' }, { status: 404 });
+      return NextResponse.json(
+        { error: 'Schedule not found' },
+        { status: 404 }
+      );
     }
 
     return NextResponse.json(schedule);
   } catch (error) {
     console.error('Error fetching schedule:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Internal Server Error' },
+      { status: 500 }
+    );
   }
 }
 
@@ -81,7 +64,9 @@ export async function PATCH(
     const scheduleSchema = z.object({
       title: z.string().optional(),
       description: z.string().optional(),
-      status: z.enum([ 'pending', 'approved', 'rejected', 'completed' ]).optional(),
+      status: z
+        .enum(['pending', 'approved', 'rejected', 'completed'])
+        .optional(),
       startTime: z.string().datetime().optional(),
       endTime: z.string().datetime().optional(),
       userId: z.string().optional(),
@@ -90,7 +75,10 @@ export async function PATCH(
 
     const validatedData = scheduleSchema.safeParse(body);
     if (!validatedData.success) {
-      return NextResponse.json({ error: validatedData.error.format() }, { status: 400 });
+      return NextResponse.json(
+        { error: validatedData.error.format() },
+        { status: 400 }
+      );
     }
 
     // Update the schedule
@@ -106,7 +94,10 @@ export async function PATCH(
     return NextResponse.json(updatedSchedule);
   } catch (error) {
     console.error('Error updating schedule:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Internal Server Error' },
+      { status: 500 }
+    );
   }
 }
 
@@ -124,7 +115,10 @@ export async function DELETE(
     });
 
     if (!existingSchedule) {
-      return NextResponse.json({ error: 'Schedule not found' }, { status: 404 });
+      return NextResponse.json(
+        { error: 'Schedule not found' },
+        { status: 404 }
+      );
     }
 
     // Add authorization check here
@@ -137,6 +131,9 @@ export async function DELETE(
     return NextResponse.json({ message: 'Schedule deleted successfully' });
   } catch (error) {
     console.error('Error deleting schedule:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Internal Server Error' },
+      { status: 500 }
+    );
   }
 }

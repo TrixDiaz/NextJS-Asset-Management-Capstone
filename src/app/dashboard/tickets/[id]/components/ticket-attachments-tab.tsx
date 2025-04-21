@@ -76,7 +76,7 @@ export default function TicketAttachmentsTab({
 
   useEffect(() => {
     fetchAttachments();
-  }, [ticketId]);
+  }, [ticketId, fetchAttachments]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {

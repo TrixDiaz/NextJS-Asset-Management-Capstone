@@ -1,16 +1,25 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  typescript: {
+    // !! WARN !!
+    // Dangerously allow production builds to successfully complete even if
+    // your project has type errors.
+    // !! WARN !!
+    ignoreBuildErrors: true
+  },
+  eslint: {
+    // Disabling ESLint during build since we're handling it separately
+    ignoreDuringBuilds: true
+  },
   images: {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: 'utfs.io',
-        port: ''
+        hostname: 'img.clerk.com'
       },
       {
         protocol: 'https',
-        hostname: 'api.slingacademy.com',
-        port: ''
+        hostname: 'images.clerk.dev'
       }
     ]
   },

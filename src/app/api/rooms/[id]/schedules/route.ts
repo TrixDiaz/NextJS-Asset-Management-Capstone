@@ -31,7 +31,7 @@ export async function GET(
           }
         }
       },
-      orderBy: [ { dayOfWeek: 'asc' }, { startTime: 'asc' } ]
+      orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }]
     });
 
     return NextResponse.json(schedules);

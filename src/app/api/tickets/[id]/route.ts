@@ -5,8 +5,8 @@ import { z } from 'zod';
 
 // Schema validation for ticket updates
 const ticketUpdateSchema = z.object({
-  status: z.enum([ 'OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED' ]).optional(),
-  priority: z.enum([ 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL' ]).optional(),
+  status: z.enum(['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED']).optional(),
+  priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']).optional(),
   assignedToId: z.string().optional().nullable(),
   moderatorId: z.string().optional().nullable(),
   roomId: z.string().optional().nullable(),
@@ -181,7 +181,7 @@ export async function PATCH(
     // Only techs/admins/moderators can assign tickets
     if (
       assignedToId !== undefined &&
-      [ 'technician', 'admin', 'moderator' ].includes(dbUser.role)
+      ['technician', 'admin', 'moderator'].includes(dbUser.role)
     ) {
       updateData.assignedToId = assignedToId;
     }
@@ -189,7 +189,7 @@ export async function PATCH(
     // Only admins/moderators can set moderators
     if (
       moderatorId !== undefined &&
-      [ 'admin', 'moderator' ].includes(dbUser.role)
+      ['admin', 'moderator'].includes(dbUser.role)
     ) {
       updateData.moderatorId = moderatorId;
     }

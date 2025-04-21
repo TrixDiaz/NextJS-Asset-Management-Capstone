@@ -13,7 +13,7 @@ import { Fragment, useState, useEffect } from 'react';
 
 export function Breadcrumbs() {
   const items = useBreadcrumbs();
-  const [ mounted, setMounted ] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   // Only render on client to prevent hydration mismatch
   useEffect(() => {
