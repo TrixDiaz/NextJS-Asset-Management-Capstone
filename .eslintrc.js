@@ -1,0 +1,11 @@
+module.exports = {
+  extends: 'next/core-web-vitals',
+  plugins: ['@typescript-eslint'],
+  rules: {
+    '@typescript-eslint/no-unused-vars': 'warn',
+    'import/no-unresolved': 'off',
+    'import/named': 'off',
+    'no-console': 'off', // Temporarily disable console warnings
+    'react-hooks/exhaustive-deps': 'warn'
+  }
+};
