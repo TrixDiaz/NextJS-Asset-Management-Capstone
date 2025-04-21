@@ -2,8 +2,9 @@ import { Webhook } from 'svix'
 import { headers } from 'next/headers'
 import { User, WebhookEvent } from '@clerk/nextjs/server'
 import prisma from '@/lib/prisma'
+import { NextRequest } from 'next/server'
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
     const SIGNING_SECRET = process.env.SIGNING_SECRET
 
     if (!SIGNING_SECRET) {

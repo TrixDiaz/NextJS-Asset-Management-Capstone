@@ -3,11 +3,11 @@ import { prisma } from '@/lib/prisma';
 
 // GET a single room by ID
 export async function GET(
-  request: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  context: { params: { id: string } }
 ) {
   try {
-    const { id } = params;
+    const { id } = context.params;
 
     const room = await prisma.room.findUnique({
       where: { id },
@@ -52,10 +52,10 @@ export async function GET(
 // PATCH to update a room
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
-    const { id } = params;
+    const { id } = context.params;
     const data = await request.json();
     const { number, name, type, floorId } = data;
 
@@ -108,11 +108,11 @@ export async function PATCH(
 
 // DELETE a room
 export async function DELETE(
-  request: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  context: { params: { id: string } }
 ) {
   try {
-    const { id } = params;
+    const { id } = context.params;
 
     // Check if room exists
     const existingRoom = await prisma.room.findUnique({

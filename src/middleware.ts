@@ -8,29 +8,29 @@ const isProtectedRoute = createRouteMatcher([
   '/api/users(.*)'
 ]);
 
-export default clerkMiddleware(async (auth, req: NextRequest) => {
+export default clerkMiddleware((auth, request) => {
   try {
     // Get the current path
-    const path = new URL(req.url).pathname;
+    const path = new URL(request.url).pathname;
 
     // Check if it's an API route
     const isApiRoute = path.startsWith('/api/');
 
     // Protect routes
-    if (isProtectedRoute(req)) {
-      await auth.protect();
+    if (isProtectedRoute(request)) {
+      auth.protect();
 
       // Log authentication state for debugging
       console.log(`Protected route access: ${path}`);
     }
 
-    return;
+    return NextResponse.next();
   } catch (error) {
     // Log error details
-    console.error(`Middleware auth error for ${req.url}:`, error);
+    console.error(`Middleware auth error for ${request.url}:`, error);
 
     // For API routes, return a JSON error instead of redirecting
-    if (req.url.includes('/api/')) {
+    if (request.url.includes('/api/')) {
       return NextResponse.json(
         { error: 'Authentication required' },
         { status: 401 }

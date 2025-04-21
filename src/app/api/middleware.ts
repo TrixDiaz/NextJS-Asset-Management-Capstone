@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
+import { getAuth } from '@clerk/nextjs/server';
 import logger, { LogAction, LogResource, logAction } from '@/lib/logger';
 
 export interface ApiMiddlewareOptions {
@@ -50,7 +50,7 @@ export async function apiMiddleware(
 
     try {
         // Try to get user info from Clerk authentication
-        const authResult = await auth();
+        const authResult = getAuth(req);
         userId = authResult.userId || 'anonymous';
     } catch (error) {
         // Continue even if auth fails - just log as anonymous
