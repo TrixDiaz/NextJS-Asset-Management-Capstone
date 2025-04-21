@@ -11,7 +11,7 @@ const commentCreateSchema = z.object({
 
 // Get comments for a ticket
 export async function GET(
-    req: NextRequest,
+    request: Request,
     { params }: { params: { id: string } }
 ) {
     try {

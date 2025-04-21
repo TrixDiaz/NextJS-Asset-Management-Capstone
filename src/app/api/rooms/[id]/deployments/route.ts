@@ -3,11 +3,11 @@ import { prisma } from '@/lib/prisma';
 
 // GET all deployments for a room
 export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  request: Request,
+  { params }: { params: { id: string } }
 ) {
   try {
-    const { id } = await params;
+    const { id } = params;
 
     // Check if room exists
     const roomExists = await prisma.room.findUnique({

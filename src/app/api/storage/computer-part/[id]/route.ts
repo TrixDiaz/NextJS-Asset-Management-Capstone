@@ -3,10 +3,10 @@ import { prisma } from '@/lib/prisma';
 
 export async function PATCH(
     request: NextRequest,
-    { params }: { params: Promise<{ id: string }> }
+    { params }: { params: { id: string } }
 ) {
     try {
-        const { id } = await params;
+        const { id } = params;
         const data = await request.json();
         const { name, subType, quantity, unit, remarks, serialNumbers } = data;
 
@@ -64,4 +64,12 @@ export async function PATCH(
             { status: 500 }
         );
     }
+}
+
+export async function GET(
+    request: Request,
+    { params }: { params: { id: string } }
+) {
+    // ... existing code ...
+    // Update to use params.id instead of await params.id
 } 

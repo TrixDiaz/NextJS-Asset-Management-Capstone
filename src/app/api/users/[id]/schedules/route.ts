@@ -18,7 +18,7 @@ const scheduleCreateSchema = z.object({
 
 // GET all schedules for a user
 export async function GET(
-    req: NextRequest,
+    request: Request,
     { params }: { params: { id: string } }
 ) {
     try {

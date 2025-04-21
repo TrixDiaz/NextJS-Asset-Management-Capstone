@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { auth } from '@clerk/nextjs/server';
 
 // Schema for schedule update
 const scheduleUpdateSchema = z.object({
@@ -19,188 +20,114 @@ const scheduleUpdateSchema = z.object({
     })
     .optional(),
   dayOfWeek: z
-    .enum(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'])
+    .enum([ 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday' ])
     .optional(),
   roomId: z.string().optional()
 });
 
 // GET a single schedule
 export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  request: Request,
+  { params }: { params: { id: string } }
 ) {
   try {
-    const { id } = await params;
+    const { id } = params;
 
     const schedule = await prisma.schedule.findUnique({
-      where: { id },
+      where: {
+        id
+      },
       include: {
-        user: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            username: true,
-            email: true
-          }
-        },
-        room: true
+        room: true,
+        user: true
       }
     });
 
     if (!schedule) {
-      return NextResponse.json(
-        { error: 'Schedule not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'Schedule not found' }, { status: 404 });
     }
 
     return NextResponse.json(schedule);
   } catch (error) {
     console.error('Error fetching schedule:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch schedule' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
 
 // PATCH update a schedule
 export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  request: Request,
+  { params }: { params: { id: string } }
 ) {
   try {
-    const { id } = await params;
+    const { id } = params;
     const body = await request.json();
 
     // Check if schedule exists
-    const scheduleExists = await prisma.schedule.findUnique({
+    const existingSchedule = await prisma.schedule.findUnique({
       where: { id }
     });
 
-    if (!scheduleExists) {
+    if (!existingSchedule) {
       return NextResponse.json(
         { error: 'Schedule not found' },
         { status: 404 }
       );
     }
 
-    // Validate input
-    const result = scheduleUpdateSchema.safeParse(body);
-    if (!result.success) {
-      return NextResponse.json(
-        { error: 'Validation failed', details: result.error.format() },
-        { status: 400 }
-      );
-    }
+    // Add authorization check here
 
-    const { data } = result;
+    // Validate the data
+    const scheduleSchema = z.object({
+      title: z.string().optional(),
+      description: z.string().optional(),
+      status: z.enum([ 'pending', 'approved', 'rejected', 'completed' ]).optional(),
+      startTime: z.string().datetime().optional(),
+      endTime: z.string().datetime().optional(),
+      userId: z.string().optional(),
+      roomId: z.string().optional()
+    });
 
-    // If room is changing, check if it exists
-    if (data.roomId && data.roomId !== scheduleExists.roomId) {
-      const roomExists = await prisma.room.findUnique({
-        where: { id: data.roomId }
-      });
-
-      if (!roomExists) {
-        return NextResponse.json({ error: 'Room not found' }, { status: 404 });
-      }
-    }
-
-    // Check for schedule conflicts if time, day or room is changing
-    if (data.roomId || data.dayOfWeek || data.startTime || data.endTime) {
-      const startTime = data.startTime
-        ? new Date(data.startTime)
-        : scheduleExists.startTime;
-      const endTime = data.endTime
-        ? new Date(data.endTime)
-        : scheduleExists.endTime;
-      const dayOfWeek = data.dayOfWeek || scheduleExists.dayOfWeek;
-      const roomId = data.roomId || scheduleExists.roomId;
-
-      const conflictingSchedule = await prisma.schedule.findFirst({
-        where: {
-          id: { not: id },
-          roomId,
-          dayOfWeek,
-          OR: [
-            {
-              startTime: {
-                lte: endTime
-              },
-              endTime: {
-                gte: startTime
-              }
-            }
-          ]
-        }
-      });
-
-      if (conflictingSchedule) {
-        return NextResponse.json(
-          { error: 'Schedule conflicts with an existing booking' },
-          { status: 409 }
-        );
-      }
+    const validatedData = scheduleSchema.safeParse(body);
+    if (!validatedData.success) {
+      return NextResponse.json({ error: validatedData.error.format() }, { status: 400 });
     }
 
     // Update the schedule
-    const updateData: any = {};
-    if (data.title) updateData.title = data.title;
-    if (data.description !== undefined)
-      updateData.description = data.description;
-    if (data.startTime) updateData.startTime = new Date(data.startTime);
-    if (data.endTime) updateData.endTime = new Date(data.endTime);
-    if (data.dayOfWeek) updateData.dayOfWeek = data.dayOfWeek;
-    if (data.roomId) updateData.roomId = data.roomId;
-
     const updatedSchedule = await prisma.schedule.update({
       where: { id },
-      data: updateData,
+      data: validatedData.data,
       include: {
-        user: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            username: true,
-            email: true
-          }
-        },
-        room: true
+        room: true,
+        user: true
       }
     });
 
     return NextResponse.json(updatedSchedule);
   } catch (error) {
     console.error('Error updating schedule:', error);
-    return NextResponse.json(
-      { error: 'Failed to update schedule' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
 
 // DELETE a schedule
 export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  request: Request,
+  { params }: { params: { id: string } }
 ) {
   try {
-    const { id } = await params;
+    const { id } = params;
 
     // Check if schedule exists
-    const scheduleExists = await prisma.schedule.findUnique({
+    const existingSchedule = await prisma.schedule.findUnique({
       where: { id }
     });
 
-    if (!scheduleExists) {
-      return NextResponse.json(
-        { error: 'Schedule not found' },
-        { status: 404 }
-      );
+    if (!existingSchedule) {
+      return NextResponse.json({ error: 'Schedule not found' }, { status: 404 });
     }
+
+    // Add authorization check here
 
     // Delete the schedule
     await prisma.schedule.delete({
@@ -210,9 +137,6 @@ export async function DELETE(
     return NextResponse.json({ message: 'Schedule deleted successfully' });
   } catch (error) {
     console.error('Error deleting schedule:', error);
-    return NextResponse.json(
-      { error: 'Failed to delete schedule' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

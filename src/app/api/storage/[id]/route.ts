@@ -3,8 +3,8 @@ import { prisma } from '@/lib/prisma';
 
 // GET a specific storage item
 export async function GET(
-    req: NextRequest,
-    { params }: { params: Promise<{ id: string }> }
+    request: Request,
+    { params }: { params: { id: string } }
 ) {
     try {
         const { id } = await params;
@@ -45,12 +45,12 @@ export async function GET(
 
 // PATCH to update a storage item
 export async function PATCH(
-    req: NextRequest,
-    { params }: { params: Promise<{ id: string }> }
+    request: Request,
+    { params }: { params: { id: string } }
 ) {
     try {
-        const { id } = await params;
-        const data = await req.json();
+        const { id } = params;
+        const data = await request.json();
         console.log("Update data received:", data);
         const { name, itemType, subType, quantity, unit, remarks, serialNumbers } = data;
 
@@ -105,11 +105,11 @@ export async function PATCH(
 
 // DELETE a storage item
 export async function DELETE(
-    req: NextRequest,
-    { params }: { params: Promise<{ id: string }> }
+    request: Request,
+    { params }: { params: { id: string } }
 ) {
     try {
-        const { id } = await params;
+        const { id } = params;
 
         // Check if storage item exists
         const existingItem = await prisma.storageItem.findUnique({

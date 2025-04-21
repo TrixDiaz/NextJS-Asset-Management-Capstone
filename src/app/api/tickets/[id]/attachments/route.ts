@@ -83,7 +83,7 @@ export async function POST(
 
 // Get all attachments for a ticket
 export async function GET(
-    req: NextRequest,
+    request: Request,
     { params }: { params: { id: string } }
 ) {
     try {
