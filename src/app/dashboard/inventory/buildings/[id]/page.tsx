@@ -1,10 +1,10 @@
 'use client';
 
-import { notFound } from 'next/navigation';
+import { notFound, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, use } from 'react';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Plus } from 'lucide-react';
+import { ArrowLeft, Plus, Trash } from 'lucide-react';
 import {
   Card,
   CardContent,
@@ -12,12 +12,24 @@ import {
   CardHeader,
   CardTitle
 } from '@/components/ui/card';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger
+} from '@/components/ui/alert-dialog';
 import { setEntityNameInStorage } from '@/hooks/use-breadcrumbs';
+import { toast } from '@/components/ui/use-toast';
 
 interface BuildingDetailPageProps {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 type Building = {
@@ -48,10 +60,15 @@ type Floor = {
 export default function BuildingDetailPage({
   params
 }: BuildingDetailPageProps) {
-  const { id } = params;
+  // Unwrap params Promise with React.use()
+  const unwrappedParams = use(params);
+  const { id } = unwrappedParams;
+
+  const router = useRouter();
   const [building, setBuilding] = useState<Building | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     const fetchBuildingData = async () => {
@@ -84,6 +101,35 @@ export default function BuildingDetailPage({
 
     fetchBuildingData();
   }, [id]);
+
+  const handleDeleteBuilding = async () => {
+    try {
+      setIsDeleting(true);
+      const response = await fetch(`/api/buildings/${id}`, {
+        method: 'DELETE'
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete building');
+      }
+
+      toast({
+        title: 'Building deleted',
+        description: 'Building has been successfully deleted'
+      });
+
+      router.push('/dashboard/inventory');
+    } catch (error) {
+      console.error('Error deleting building:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to delete building. Please try again.',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   if (loading) {
     return <div className='container p-6'>Loading building details...</div>;
@@ -128,6 +174,33 @@ export default function BuildingDetailPage({
               Add Floor
             </Button>
           </Link>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant='destructive' disabled={isDeleting}>
+                <Trash className='mr-2 h-4 w-4' />
+                {isDeleting ? 'Deleting...' : 'Delete Building'}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This action cannot be undone. This will permanently delete the
+                  building &ldquo;{building.name}&rdquo; and all its floors and
+                  rooms from the database.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleDeleteBuilding}
+                  className='bg-destructive text-destructive-foreground hover:bg-destructive/90'
+                >
+                  Delete
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </div>
 

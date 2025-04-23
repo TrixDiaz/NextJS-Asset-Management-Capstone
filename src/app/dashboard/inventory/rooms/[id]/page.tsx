@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { setEntityNameInStorage } from '@/hooks/use-breadcrumbs';
+import Image from 'next/image';
 
 interface RoomDetailPageProps {
   params: Promise<{
@@ -123,16 +124,9 @@ export default function RoomDetailPage({ params }: RoomDetailPageProps) {
           roomData.floor.building.name
         );
 
-        // Generate QR code
-        const qrData = {
-          id: roomData.id,
-          name: roomData.name,
-          number: roomData.number,
-          floor: roomData.floor.number,
-          building: roomData.floor.building.name
-        };
-
-        const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(JSON.stringify(qrData))}`;
+        // Generate QR code for room URL
+        const roomUrl = `${window.location.origin}/dashboard/inventory/rooms/${id}`;
+        const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(roomUrl)}`;
         setQrCode(qrCodeUrl);
 
         // Fetch deployments

@@ -11,8 +11,8 @@ interface NewFloorPageProps {
   };
 }
 
-export default async function NewFloorPage({ params }: NewFloorPageProps) {
-  const { id } = params;
+export default async function NewFloorPage(props: NewFloorPageProps) {
+  const id = props.params.id;
 
   // Fetch building details to show in the heading
   const building = await prisma.building.findUnique({

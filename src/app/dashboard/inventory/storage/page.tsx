@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
+import { Plus, Upload } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -14,6 +14,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { checkRole } from '@/utils/roles';
 import { redirect } from 'next/navigation';
+import { DownloadCsvButton } from '@/components/download-csv-button';
 
 // Define StorageItem type
 type StorageItem = {
@@ -76,6 +77,13 @@ export default async function StorageInventoryPage() {
               <Button>
                 <Plus className='mr-2 h-4 w-4' />
                 Add Item
+              </Button>
+            </Link>
+            <DownloadCsvButton templateType='Storage' />
+            <Link href='/dashboard/inventory/storage/import'>
+              <Button variant='outline'>
+                <Upload className='mr-2 h-4 w-4' />
+                Import CSV
               </Button>
             </Link>
             <Link href='/dashboard/inventory'>

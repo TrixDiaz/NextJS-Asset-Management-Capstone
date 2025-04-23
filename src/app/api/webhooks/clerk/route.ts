@@ -56,6 +56,33 @@ export async function POST(req: NextRequest) {
   console.log(`Received webhook with ID ${id} and event type of ${eventType}`);
   console.log('Webhook payload:', body);
 
+  // Handle sign in events to track user logins
+  if (evt.type === 'session.created') {
+    const { user_id } = evt.data;
+
+    try {
+      // Update the user's lastSignInAt timestamp
+      const updatedUser = await prisma.user.updateMany({
+        where: {
+          clerkId: user_id
+        },
+        data: {
+          lastSignInAt: new Date()
+        }
+      });
+
+      console.log('User login timestamp updated:', updatedUser);
+      return new Response(JSON.stringify({ message: 'User login recorded' }), {
+        status: 200
+      });
+    } catch (error) {
+      console.error('Error: Failed to update user login timestamp:', error);
+      return new Response('Error: Failed to update user login timestamp', {
+        status: 500
+      });
+    }
+  }
+
   if (evt.type === 'user.created') {
     const { id, email_addresses, first_name, last_name, username, image_url } =
       evt.data;

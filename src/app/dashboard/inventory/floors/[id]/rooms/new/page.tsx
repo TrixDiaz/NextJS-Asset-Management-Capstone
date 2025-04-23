@@ -11,8 +11,9 @@ interface AddRoomPageProps {
   };
 }
 
-export default async function AddRoomPage({ params }: AddRoomPageProps) {
-  const { id } = params;
+export default async function AddRoomPage(props: AddRoomPageProps) {
+  // Access id from props.params
+  const id = props.params.id;
 
   try {
     // Verify the floor exists

@@ -11,8 +11,8 @@ interface EditFloorPageProps {
   };
 }
 
-export default async function EditFloorPage({ params }: EditFloorPageProps) {
-  const { id } = params;
+export default async function EditFloorPage(props: EditFloorPageProps) {
+  const id = props.params.id;
 
   // Fetch floor details for pre-filling the form
   const floor = await prisma.floor.findUnique({
