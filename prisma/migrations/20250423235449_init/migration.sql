@@ -7,6 +7,15 @@ CREATE TYPE "AssetType" AS ENUM ('COMPUTER', 'PRINTER', 'PROJECTOR', 'NETWORK_EQ
 -- CreateEnum
 CREATE TYPE "AssetStatus" AS ENUM ('WORKING', 'NEEDS_REPAIR', 'OUT_OF_SERVICE', 'UNDER_MAINTENANCE');
 
+-- CreateEnum
+CREATE TYPE "TicketStatus" AS ENUM ('OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED');
+
+-- CreateEnum
+CREATE TYPE "TicketPriority" AS ENUM ('LOW', 'MEDIUM', 'HIGH', 'CRITICAL');
+
+-- CreateEnum
+CREATE TYPE "TicketType" AS ENUM ('ISSUE_REPORT', 'ROOM_REQUEST', 'ASSET_REQUEST');
+
 -- CreateTable
 CREATE TABLE "User" (
     "id" TEXT NOT NULL,
@@ -15,6 +24,7 @@ CREATE TABLE "User" (
     "lastName" TEXT,
     "username" TEXT,
     "email" TEXT,
+    "emailVerified" TIMESTAMP(3),
     "profileImageUrl" TEXT,
     "imageUrl" TEXT,
     "birthday" TEXT,
@@ -47,11 +57,13 @@ CREATE TABLE "Permission" (
 
 -- CreateTable
 CREATE TABLE "UserPermission" (
+    "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "permissionId" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "UserPermission_pkey" PRIMARY KEY ("userId","permissionId")
+    CONSTRAINT "UserPermission_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -113,9 +125,11 @@ CREATE TABLE "StorageItem" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "itemType" TEXT NOT NULL,
+    "subType" TEXT,
     "quantity" INTEGER NOT NULL DEFAULT 0,
     "unit" TEXT,
     "remarks" TEXT,
+    "serialNumbers" TEXT[],
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -142,6 +156,7 @@ CREATE TABLE "DeploymentRecord" (
     "assetId" TEXT,
     "storageItemId" TEXT,
     "quantity" INTEGER NOT NULL DEFAULT 1,
+    "serialNumber" TEXT,
     "fromRoomId" TEXT,
     "toRoomId" TEXT,
     "date" TIMESTAMP(3) NOT NULL,
@@ -151,6 +166,72 @@ CREATE TABLE "DeploymentRecord" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "DeploymentRecord_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Schedule" (
+    "id" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "description" TEXT,
+    "startTime" TIMESTAMP(3) NOT NULL,
+    "endTime" TIMESTAMP(3) NOT NULL,
+    "dayOfWeek" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "roomId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Schedule_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Ticket" (
+    "id" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "description" TEXT NOT NULL,
+    "status" "TicketStatus" NOT NULL DEFAULT 'OPEN',
+    "priority" "TicketPriority" NOT NULL DEFAULT 'MEDIUM',
+    "ticketType" "TicketType" NOT NULL DEFAULT 'ISSUE_REPORT',
+    "createdById" TEXT NOT NULL,
+    "assignedToId" TEXT,
+    "moderatorId" TEXT,
+    "assetId" TEXT,
+    "roomId" TEXT,
+    "requestedAssetId" TEXT,
+    "startTime" TIMESTAMP(3),
+    "endTime" TIMESTAMP(3),
+    "dayOfWeek" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "resolvedAt" TIMESTAMP(3),
+
+    CONSTRAINT "Ticket_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Attachment" (
+    "id" TEXT NOT NULL,
+    "fileName" TEXT NOT NULL,
+    "fileUrl" TEXT NOT NULL,
+    "fileType" TEXT NOT NULL,
+    "fileSize" INTEGER NOT NULL,
+    "ticketId" TEXT NOT NULL,
+    "uploadedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "Attachment_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "TicketComment" (
+    "id" TEXT NOT NULL,
+    "content" TEXT NOT NULL,
+    "ticketId" TEXT NOT NULL,
+    "authorId" TEXT NOT NULL,
+    "isPrivate" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "TicketComment_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
@@ -169,10 +250,7 @@ CREATE UNIQUE INDEX "Permission_name_key" ON "Permission"("name");
 CREATE UNIQUE INDEX "Permission_code_key" ON "Permission"("code");
 
 -- CreateIndex
-CREATE INDEX "UserPermission_userId_idx" ON "UserPermission"("userId");
-
--- CreateIndex
-CREATE INDEX "UserPermission_permissionId_idx" ON "UserPermission"("permissionId");
+CREATE UNIQUE INDEX "UserPermission_userId_permissionId_key" ON "UserPermission"("userId", "permissionId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Building_name_key" ON "Building"("name");
@@ -212,3 +290,24 @@ ALTER TABLE "DeploymentRecord" ADD CONSTRAINT "DeploymentRecord_assetId_fkey" FO
 
 -- AddForeignKey
 ALTER TABLE "DeploymentRecord" ADD CONSTRAINT "DeploymentRecord_storageItemId_fkey" FOREIGN KEY ("storageItemId") REFERENCES "StorageItem"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Schedule" ADD CONSTRAINT "Schedule_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Schedule" ADD CONSTRAINT "Schedule_roomId_fkey" FOREIGN KEY ("roomId") REFERENCES "Room"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Ticket" ADD CONSTRAINT "Ticket_assetId_fkey" FOREIGN KEY ("assetId") REFERENCES "Asset"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Ticket" ADD CONSTRAINT "Ticket_roomId_fkey" FOREIGN KEY ("roomId") REFERENCES "Room"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Ticket" ADD CONSTRAINT "Ticket_requestedAssetId_fkey" FOREIGN KEY ("requestedAssetId") REFERENCES "Asset"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Attachment" ADD CONSTRAINT "Attachment_ticketId_fkey" FOREIGN KEY ("ticketId") REFERENCES "Ticket"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "TicketComment" ADD CONSTRAINT "TicketComment_ticketId_fkey" FOREIGN KEY ("ticketId") REFERENCES "Ticket"("id") ON DELETE CASCADE ON UPDATE CASCADE;

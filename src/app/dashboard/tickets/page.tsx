@@ -1,107 +1,81 @@
 import { Suspense } from 'react';
+import { Metadata } from 'next';
+import { PageHeader } from '@/components/page-header';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle
-} from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
 import TicketListTab from './components/ticket-list-tab';
-import TicketStatusFilter from './components/ticket-status-filter';
 import CreateTicketButton from './components/create-ticket-button';
+import { Skeleton } from '@/components/ui/skeleton';
 
-export const metadata = {
-  title: 'Tickets | Dashboard'
+export const metadata: Metadata = {
+  title: 'Tickets',
+  description: 'View and manage support tickets'
 };
 
 export default function TicketsPage() {
   return (
-    <div className='m-8 flex h-full flex-col gap-4 overflow-y-auto pb-8'>
-      <div className='flex flex-col items-start justify-between gap-2 p-2 md:flex-row md:items-center'>
-        <div>
-          <h1 className='text-2xl font-bold'>Tickets</h1>
-          <p className='text-muted-foreground'>
-            Manage and track asset-related issues with the ticketing system
-          </p>
+    <div className='m-6 h-[calc(100vh-50px)] overflow-y-auto'>
+      <div className='container mx-auto space-y-6 py-6'>
+        <div className='flex items-center justify-between'>
+          <PageHeader
+            heading='Tickets'
+            subheading='View and manage support tickets'
+          />
+          <CreateTicketButton />
         </div>
-        <CreateTicketButton />
-      </div>
 
-      <Tabs defaultValue='all' className='w-full'>
-        <div className='flex flex-col items-start justify-between px-2 sm:flex-row sm:items-center sm:gap-4'>
-          <TabsList>
-            <TabsTrigger value='all'>All Tickets</TabsTrigger>
-            <TabsTrigger value='created'>Created by Me</TabsTrigger>
-            <TabsTrigger value='assigned'>Assigned to Me</TabsTrigger>
+        <Tabs defaultValue='all'>
+          <TabsList className='grid w-full grid-cols-5 md:w-auto'>
+            <TabsTrigger value='all'>All</TabsTrigger>
+            <TabsTrigger value='open'>Open</TabsTrigger>
+            <TabsTrigger value='issues'>Issues</TabsTrigger>
+            <TabsTrigger value='room-requests'>Room Requests</TabsTrigger>
+            <TabsTrigger value='asset-requests'>Asset Requests</TabsTrigger>
           </TabsList>
-          <TicketStatusFilter />
-        </div>
-
-        <TabsContent value='all' className='mt-4'>
-          <Card>
-            <CardHeader className='px-6'>
-              <CardTitle>All Tickets</CardTitle>
-              <CardDescription>
-                View all tickets you have access to based on your role.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className='max-h-[60vh] overflow-y-auto px-6 py-4'>
-              <Suspense fallback={<TicketListSkeleton />}>
-                <TicketListTab filter='all' />
-              </Suspense>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value='created' className='mt-4'>
-          <Card>
-            <CardHeader className='px-6'>
-              <CardTitle>Tickets Created by Me</CardTitle>
-              <CardDescription>View tickets you have created.</CardDescription>
-            </CardHeader>
-            <CardContent className='max-h-[60vh] overflow-y-auto px-6 py-4'>
-              <Suspense fallback={<TicketListSkeleton />}>
-                <TicketListTab filter='created' />
-              </Suspense>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value='assigned' className='mt-4'>
-          <Card>
-            <CardHeader className='px-6'>
-              <CardTitle>Tickets Assigned to Me</CardTitle>
-              <CardDescription>
-                View tickets assigned to you for resolution.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className='max-h-[60vh] overflow-y-auto px-6 py-4'>
-              <Suspense fallback={<TicketListSkeleton />}>
-                <TicketListTab filter='assigned' />
-              </Suspense>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+          <TabsContent value='all' className='space-y-4'>
+            <Suspense fallback={<TicketsSkeleton />}>
+              <TicketListTab filter={{ status: null, type: null }} />
+            </Suspense>
+          </TabsContent>
+          <TabsContent value='open' className='space-y-4'>
+            <Suspense fallback={<TicketsSkeleton />}>
+              <TicketListTab filter={{ status: 'OPEN', type: null }} />
+            </Suspense>
+          </TabsContent>
+          <TabsContent value='issues' className='space-y-4'>
+            <Suspense fallback={<TicketsSkeleton />}>
+              <TicketListTab filter={{ status: null, type: 'ISSUE_REPORT' }} />
+            </Suspense>
+          </TabsContent>
+          <TabsContent value='room-requests' className='space-y-4'>
+            <Suspense fallback={<TicketsSkeleton />}>
+              <TicketListTab filter={{ status: null, type: 'ROOM_REQUEST' }} />
+            </Suspense>
+          </TabsContent>
+          <TabsContent value='asset-requests' className='space-y-4'>
+            <Suspense fallback={<TicketsSkeleton />}>
+              <TicketListTab filter={{ status: null, type: 'ASSET_REQUEST' }} />
+            </Suspense>
+          </TabsContent>
+        </Tabs>
+      </div>
     </div>
   );
 }
 
-function TicketListSkeleton() {
+function TicketsSkeleton() {
   return (
     <div className='space-y-4'>
       {Array.from({ length: 5 }).map((_, i) => (
-        <div
-          key={i}
-          className='flex items-center space-x-4 rounded-md border p-4'
-        >
-          <div className='flex-1 space-y-2'>
-            <Skeleton className='h-4 w-1/4' />
-            <Skeleton className='h-4 w-3/4' />
+        <div key={i} className='space-y-3 rounded-lg border p-4'>
+          <div className='flex items-start justify-between'>
+            <Skeleton className='h-6 w-1/3' />
+            <Skeleton className='h-5 w-20' />
           </div>
-          <Skeleton className='h-8 w-24' />
+          <Skeleton className='h-4 w-2/3' />
+          <div className='flex space-x-2'>
+            <Skeleton className='h-5 w-16' />
+            <Skeleton className='h-5 w-24' />
+          </div>
         </div>
       ))}
     </div>

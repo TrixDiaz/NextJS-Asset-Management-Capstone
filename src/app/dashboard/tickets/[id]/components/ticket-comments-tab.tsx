@@ -8,7 +8,7 @@ import { Loader2, Send, Eye, EyeOff, User, Calendar } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { toast } from 'sonner';
+import { toast } from '@/components/ui/use-toast';
 import {
   Form,
   FormControl,
@@ -19,6 +19,7 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { formatDistanceToNow } from 'date-fns';
 import { Separator } from '@/components/ui/separator';
+import { format } from 'date-fns';
 
 interface Comment {
   id: string;
@@ -26,6 +27,11 @@ interface Comment {
   authorId: string;
   isPrivate: boolean;
   createdAt: string;
+  author?: {
+    firstName?: string;
+    lastName?: string;
+    username?: string;
+  };
 }
 
 interface TicketCommentsTabProps {
@@ -78,8 +84,10 @@ export default function TicketCommentsTab({
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
       console.error('Error fetching comments:', err);
-      toast.error('Error', {
-        description: 'Failed to fetch comments'
+      toast({
+        title: 'Error',
+        description: 'Failed to load comments',
+        variant: 'destructive'
       });
     } finally {
       setLoading(false);
@@ -90,7 +98,7 @@ export default function TicketCommentsTab({
     fetchComments();
   }, [ticketId]);
 
-  const onSubmit = async (data: CommentFormValues) => {
+  const onSubmit = async (values: CommentFormValues) => {
     setSubmitting(true);
     try {
       const response = await fetch(`/api/tickets/${ticketId}/comments`, {
@@ -99,37 +107,57 @@ export default function TicketCommentsTab({
           'Content-Type': 'application/json'
         },
         credentials: 'include',
-        body: JSON.stringify(data)
+        body: JSON.stringify(values)
       });
 
       if (!response.ok) {
-        if (response.status === 401) {
-          throw new Error('Authentication error - please sign in again');
-        }
-        throw new Error('Failed to add comment');
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to add comment');
       }
 
-      await fetchComments();
-      form.reset({ content: '', isPrivate: false });
+      const newComment = await response.json();
+      setComments([newComment, ...comments]);
+      form.reset();
       router.refresh();
 
-      toast.success('Comment added', {
-        description: data.isPrivate
-          ? 'Your private comment has been added'
-          : 'Your comment has been added'
+      toast({
+        title: 'Comment added',
+        description: 'Your comment has been added successfully'
       });
     } catch (error) {
-      toast.error('Error', {
+      toast({
+        title: 'Error',
         description:
-          error instanceof Error ? error.message : 'Failed to add comment'
+          error instanceof Error ? error.message : 'Failed to add comment',
+        variant: 'destructive'
       });
     } finally {
       setSubmitting(false);
     }
   };
 
+  const formatDate = (dateString: string) => {
+    return format(new Date(dateString), 'PPP p');
+  };
+
+  const getAuthorName = (comment: Comment) => {
+    if (comment.author) {
+      if (comment.author.firstName && comment.author.lastName) {
+        return `${comment.author.firstName} ${comment.author.lastName}`;
+      }
+      if (comment.author.username) {
+        return comment.author.username;
+      }
+    }
+    return 'User';
+  };
+
   if (loading) {
-    return <p>Loading comments...</p>;
+    return (
+      <div className='flex h-40 items-center justify-center'>
+        <Loader2 className='text-primary h-8 w-8 animate-spin' />
+      </div>
+    );
   }
 
   if (error) {
@@ -137,39 +165,36 @@ export default function TicketCommentsTab({
   }
 
   return (
-    <div className='space-y-4'>
+    <div className='space-y-6'>
       <div className='space-y-4'>
         {comments.length === 0 ? (
-          <p className='text-muted-foreground py-4 text-center'>
-            No comments yet. Be the first to add a comment.
-          </p>
+          <div className='text-muted-foreground py-8 text-center'>
+            No comments yet
+          </div>
         ) : (
           comments.map((comment) => (
-            <div key={comment.id} className='space-y-2'>
-              <div className='flex items-start justify-between'>
-                <div className='flex items-center gap-2'>
-                  <User className='text-muted-foreground h-4 w-4' />
-                  <span className='text-sm font-medium'>
-                    User #{comment.authorId.substring(0, 6)}
-                  </span>
+            <div
+              key={comment.id}
+              className={`rounded-md border p-4 ${
+                comment.isPrivate ? 'bg-muted/30' : ''
+              }`}
+            >
+              <div className='mb-2 flex items-center justify-between'>
+                <div className='flex items-center'>
+                  <User className='text-muted-foreground mr-2 h-5 w-5' />
+                  <span className='font-medium'>{getAuthorName(comment)}</span>
                   {comment.isPrivate && (
-                    <span className='text-muted-foreground flex items-center gap-1 text-xs'>
-                      <EyeOff className='h-3 w-3' />
+                    <div className='text-muted-foreground ml-2 flex items-center text-xs'>
+                      <EyeOff className='mr-1 h-3 w-3' />
                       Private
-                    </span>
+                    </div>
                   )}
                 </div>
-                <div className='text-muted-foreground flex items-center text-xs'>
-                  <Calendar className='mr-1 h-3 w-3' />
-                  {formatDistanceToNow(new Date(comment.createdAt), {
-                    addSuffix: true
-                  })}
-                </div>
+                <span className='text-muted-foreground text-xs'>
+                  {formatDate(comment.createdAt)}
+                </span>
               </div>
-              <p className='pl-6 text-sm whitespace-pre-line'>
-                {comment.content}
-              </p>
-              <Separator className='mt-2' />
+              <p className='whitespace-pre-wrap'>{comment.content}</p>
             </div>
           ))
         )}

@@ -7,10 +7,17 @@ import { z } from 'zod';
 const ticketUpdateSchema = z.object({
   status: z.enum(['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED']).optional(),
   priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']).optional(),
+  ticketType: z
+    .enum(['ISSUE_REPORT', 'ROOM_REQUEST', 'ASSET_REQUEST'])
+    .optional(),
   assignedToId: z.string().optional().nullable(),
   moderatorId: z.string().optional().nullable(),
   roomId: z.string().optional().nullable(),
-  assetId: z.string().optional().nullable()
+  assetId: z.string().optional().nullable(),
+  requestedAssetId: z.string().optional().nullable(),
+  startTime: z.string().optional().nullable(),
+  endTime: z.string().optional().nullable(),
+  dayOfWeek: z.string().optional().nullable()
 });
 
 // Get a specific ticket
@@ -37,6 +44,7 @@ export async function GET(
       where: { id: params.id },
       include: {
         asset: true,
+        requestedAsset: true,
         room: {
           include: {
             floor: {
@@ -122,12 +130,30 @@ export async function PATCH(
         status: true,
         createdById: true,
         assignedToId: true,
-        moderatorId: true
+        moderatorId: true,
+        ticketType: true,
+        roomId: true,
+        assetId: true,
+        requestedAssetId: true,
+        startTime: true,
+        endTime: true,
+        dayOfWeek: true
       }
     });
 
     if (!ticket) {
       return NextResponse.json({ error: 'Ticket not found' }, { status: 404 });
+    }
+
+    // Check permissions - only admin, moderator, assigned tech, or creator can update
+    const canUpdate =
+      dbUser.role === 'admin' ||
+      dbUser.role === 'moderator' ||
+      ticket.assignedToId === dbUser.id ||
+      ticket.createdById === dbUser.id;
+
+    if (!canUpdate) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const body = await req.json();
@@ -140,72 +166,72 @@ export async function PATCH(
       );
     }
 
-    const { status, priority, assignedToId, moderatorId, roomId, assetId } =
-      validatedData.data;
+    const updateData = { ...validatedData.data };
 
-    // Role-based permissions for ticket updates
-    if (dbUser.role === 'member' && ticket.createdById !== dbUser.id) {
-      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+    // Handle date conversions if provided
+    if (updateData.startTime) {
+      updateData.startTime = new Date(updateData.startTime);
     }
 
-    // Members can only resolve tickets they created
+    if (updateData.endTime) {
+      updateData.endTime = new Date(updateData.endTime);
+    }
+
+    // Check for room availability if this is a room request and dates/room are being updated
     if (
-      status === 'RESOLVED' &&
-      dbUser.role === 'member' &&
-      ticket.createdById !== dbUser.id
+      ticket.ticketType === 'ROOM_REQUEST' &&
+      (updateData.roomId ||
+        updateData.startTime ||
+        updateData.endTime ||
+        updateData.dayOfWeek)
     ) {
-      return NextResponse.json(
-        { error: 'Only ticket creators can resolve their tickets' },
-        { status: 403 }
-      );
+      const roomId = updateData.roomId || ticket.roomId;
+      const dayOfWeek = updateData.dayOfWeek || ticket.dayOfWeek;
+      const startTime = updateData.startTime || ticket.startTime;
+      const endTime = updateData.endTime || ticket.endTime;
+
+      if (roomId && dayOfWeek && startTime && endTime) {
+        const conflictingSchedule = await db.schedule.findFirst({
+          where: {
+            roomId,
+            dayOfWeek,
+            OR: [
+              {
+                startTime: {
+                  lte: endTime
+                },
+                endTime: {
+                  gte: startTime
+                }
+              }
+            ],
+            // Exclude current ticket's schedule if any
+            NOT: {
+              id: ticket.id
+            }
+          }
+        });
+
+        if (conflictingSchedule) {
+          return NextResponse.json(
+            { error: 'Room is already booked for the requested time' },
+            { status: 409 }
+          );
+        }
+      }
     }
 
-    // Technicians can only update status of tickets assigned to them
-    if (
-      dbUser.role === 'technician' &&
-      status &&
-      ticket.assignedToId !== dbUser.id
-    ) {
-      return NextResponse.json(
-        { error: 'Technicians can only update tickets assigned to them' },
-        { status: 403 }
-      );
-    }
-
-    // Build update data
-    const updateData: any = {};
-
-    if (status) updateData.status = status;
-    if (priority) updateData.priority = priority;
-
-    // Only techs/admins/moderators can assign tickets
-    if (
-      assignedToId !== undefined &&
-      ['technician', 'admin', 'moderator'].includes(dbUser.role)
-    ) {
-      updateData.assignedToId = assignedToId;
-    }
-
-    // Only admins/moderators can set moderators
-    if (
-      moderatorId !== undefined &&
-      ['admin', 'moderator'].includes(dbUser.role)
-    ) {
-      updateData.moderatorId = moderatorId;
-    }
-
-    // Handle room and asset updates
-    if (roomId !== undefined) {
-      updateData.roomId = roomId;
-    }
-
-    if (assetId !== undefined) {
-      updateData.assetId = assetId;
-    }
-
-    // Add resolvedAt timestamp if resolving the ticket
-    if (status === 'RESOLVED' && ticket.status !== 'RESOLVED') {
+    // Set resolvedAt if status is changing to RESOLVED
+    if (updateData.status === 'RESOLVED' && ticket.status !== 'RESOLVED') {
       updateData.resolvedAt = new Date();
+    }
+
+    // Remove resolvedAt if reopening the ticket
+    if (
+      (updateData.status === 'OPEN' || updateData.status === 'IN_PROGRESS') &&
+      (ticket.status === 'RESOLVED' || ticket.status === 'CLOSED')
+    ) {
+      updateData.resolvedAt = null;
     }
 
     const updatedTicket = await db.ticket.update({
@@ -213,6 +239,7 @@ export async function PATCH(
       data: updateData,
       include: {
         asset: true,
+        requestedAsset: true,
         room: {
           include: {
             floor: {

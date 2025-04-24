@@ -106,21 +106,22 @@ enum RoomType {
 }
 
 model Asset {
-  id              String          @id @default(cuid())
-  assetTag        String?         @unique // Optional tracking ID/tag
-  assetType       AssetType
-  systemUnit      String?         // For computers: model/serial number
-  ups             String?         // UPS model/serial number
-  monitor         String?         // Monitor model/serial number
-  status          AssetStatus     @default(WORKING)
-  remarks         String?
-  roomId          String
-  room            Room            @relation(fields: [roomId], references: [id])
+  id                 String               @id @default(cuid())
+  assetTag           String?              @unique // Optional tracking ID/tag
+  assetType          AssetType
+  systemUnit         String?              // For computers: model/serial number
+  ups                String?              // UPS model/serial number
+  monitor            String?              // Monitor model/serial number
+  status             AssetStatus          @default(WORKING)
+  remarks            String?
+  roomId             String
+  room               Room                 @relation(fields: [roomId], references: [id])
   maintenanceHistory MaintenanceRecord[]
-  deploymentHistory DeploymentRecord[]
-  tickets         Ticket[]
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  deploymentHistory  DeploymentRecord[]
+  tickets            Ticket[]
+  assetRequests      Ticket[]             @relation("RequestedAssets")
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
 }
 
 enum AssetType {
@@ -199,23 +200,29 @@ model Schedule {
 
 // Ticket Management System Models
 model Ticket {
-  id           String         @id @default(cuid())
-  title        String
-  description  String
-  status       TicketStatus   @default(OPEN)
-  priority     TicketPriority @default(MEDIUM)
-  createdById  String         // User who created the ticket
-  assignedToId String?        // Technician who is assigned to the ticket
-  moderatorId  String?        // Moderator overseeing the ticket
-  assetId      String?        // Related asset if applicable
-  asset        Asset?         @relation(fields: [assetId], references: [id], onDelete: SetNull)
-  roomId       String?        // Room where the issue is located
-  room         Room?          @relation(fields: [roomId], references: [id], onDelete: SetNull)
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
-  resolvedAt   DateTime?      // When the ticket was resolved
-  attachments  Attachment[]
-  comments     TicketComment[]
+  id             String           @id @default(cuid())
+  title          String
+  description    String
+  status         TicketStatus     @default(OPEN)
+  priority       TicketPriority   @default(MEDIUM)
+  ticketType     TicketType       @default(ISSUE_REPORT)
+  createdById    String           // User who created the ticket
+  assignedToId   String?          // Technician who is assigned to the ticket
+  moderatorId    String?          // Moderator overseeing the ticket
+  assetId        String?          // Related asset if applicable
+  asset          Asset?           @relation(fields: [assetId], references: [id], onDelete: SetNull)
+  roomId         String?          // Room where the issue is located
+  room           Room?            @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  requestedAssetId String?        // Asset requested (for ASSET_REQUEST type)
+  requestedAsset  Asset?          @relation("RequestedAssets", fields: [requestedAssetId], references: [id], onDelete: SetNull)
+  startTime      DateTime?        // For room booking requests
+  endTime        DateTime?        // For room booking requests
+  dayOfWeek      String?          // For recurring room bookings
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  resolvedAt     DateTime?        // When the ticket was resolved
+  attachments    Attachment[]
+  comments       TicketComment[]
 }
 
 enum TicketStatus {
@@ -230,6 +237,12 @@ enum TicketPriority {
   MEDIUM
   HIGH
   CRITICAL
+}
+
+enum TicketType {
+  ISSUE_REPORT
+  ROOM_REQUEST
+  ASSET_REQUEST
 }
 
 model Attachment {
