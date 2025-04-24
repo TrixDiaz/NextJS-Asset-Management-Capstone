@@ -40,6 +40,27 @@ export const navItems: NavItem[] = [
     items: [] // No child items
   },
   {
+    title: 'Attendance',
+    url: '#',
+    icon: 'check',
+    shortcut: ['a', 'a'],
+    isActive: false,
+    items: [
+      {
+        title: 'Add Attendance',
+        url: '/dashboard/attendance',
+        icon: 'add',
+        shortcut: ['a', 'a']
+      },
+      {
+        title: 'View Attendance',
+        url: '/dashboard/attendance-list',
+        icon: 'activity',
+        shortcut: ['a', 'l']
+      }
+    ]
+  },
+  {
     title: 'Reports',
     url: '/dashboard/reports',
     icon: 'activity',

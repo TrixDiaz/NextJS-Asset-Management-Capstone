@@ -8,32 +8,31 @@ datasource db {
 }
 
 model User {
-  id               String    @id @default(cuid())
-  clerkId          String    @unique
+  id               String           @id @default(cuid())
+  clerkId          String           @unique
   firstName        String?
   lastName         String?
-  username         String?   @unique
-  email            String?   @unique
+  username         String?          @unique
+  email            String?          @unique
   emailVerified    DateTime?
   profileImageUrl  String?
   imageUrl         String?
   birthday         String?
   gender           String?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
   lastSignInAt     DateTime?
-  role             String    @default("member")
-  passwordEnabled  Boolean   @default(true)
-  twoFactorEnabled Boolean   @default(false)
+  role             String           @default("member")
+  passwordEnabled  Boolean          @default(true)
+  twoFactorEnabled Boolean          @default(false)
   externalId       String?
-  publicMetadata   Json?     @default("{}")
-  privateMetadata  Json?     @default("{}")
-  unsafeMetadata   Json?     @default("{}")
-  permissions      UserPermission[]
+  publicMetadata   Json?            @default("{}")
+  privateMetadata  Json?            @default("{}")
+  unsafeMetadata   Json?            @default("{}")
   schedules        Schedule[]
+  permissions      UserPermission[]
 }
 
-// Permission and UserPermission models for role-based access control
 model Permission {
   id          String           @id @default(cuid())
   name        String           @unique
@@ -48,53 +47,198 @@ model UserPermission {
   id           String     @id @default(cuid())
   userId       String
   permissionId String
-  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, permissionId])
 }
 
-// Inventory Management System Models
-
 model Building {
-  id        String    @id @default(cuid())
-  name      String    @unique // e.g., "KorPhil"
-  code      String?   @unique // A unique code for the building if needed
+  id        String   @id @default(cuid())
+  name      String   @unique
+  code      String?  @unique
   address   String?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
   floors    Floor[]
 }
 
 model Floor {
-  id         String     @id @default(cuid())
-  number     Int        // e.g., 3 for 3rd floor
-  name       String?    // Optional name for the floor
+  id         String   @id @default(cuid())
+  number     Int
+  name       String?
   buildingId String
-  building   Building   @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  building   Building @relation(fields: [buildingId], references: [id], onDelete: Cascade)
   rooms      Room[]
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
 
-  @@unique([buildingId, number]) // Ensure floor numbers are unique within a building
+  @@unique([buildingId, number])
 }
 
 model Room {
-  id          String     @id @default(cuid())
-  number      String     // e.g., "302"
-  name        String?    // Optional name for the room like "Computer Lab"
-  type        RoomType   @default(CLASSROOM)
-  floorId     String
-  floor       Floor      @relation(fields: [floorId], references: [id], onDelete: Cascade)
-  assets      Asset[]
-  tickets     Ticket[]
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  schedules   Schedule[]
+  id        String     @id @default(cuid())
+  number    String
+  name      String?
+  type      RoomType   @default(CLASSROOM)
+  floorId   String
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  assets    Asset[]
+  floor     Floor      @relation(fields: [floorId], references: [id], onDelete: Cascade)
+  schedules Schedule[]
+  tickets   Ticket[]
 
-  @@unique([floorId, number]) // Ensure room numbers are unique within a floor
+  @@unique([floorId, number])
+}
+
+model Asset {
+  id                 String              @id @default(cuid())
+  assetTag           String?             @unique
+  assetType          AssetType
+  systemUnit         String?
+  ups                String?
+  monitor            String?
+  status             AssetStatus         @default(WORKING)
+  remarks            String?
+  roomId             String
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  room               Room                @relation(fields: [roomId], references: [id])
+  deploymentHistory  DeploymentRecord[]
+  maintenanceHistory MaintenanceRecord[]
+  tickets            Ticket[]
+  assetRequests      Ticket[]            @relation("RequestedAssets")
+}
+
+model StorageItem {
+  id                String             @id @default(cuid())
+  name              String
+  itemType          String
+  subType           String?
+  quantity          Int                @default(0)
+  unit              String?
+  remarks           String?
+  serialNumbers     String[]
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  deploymentHistory DeploymentRecord[]
+}
+
+model MaintenanceRecord {
+  id          String   @id @default(cuid())
+  assetId     String
+  date        DateTime
+  description String
+  technician  String?
+  status      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  asset       Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+}
+
+model DeploymentRecord {
+  id            String       @id @default(cuid())
+  assetId       String?
+  storageItemId String?
+  quantity      Int          @default(1)
+  serialNumber  String?
+  fromRoomId    String?
+  toRoomId      String?
+  date          DateTime
+  deployedBy    String
+  remarks       String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  asset         Asset?       @relation(fields: [assetId], references: [id])
+  storageItem   StorageItem? @relation(fields: [storageItemId], references: [id])
+}
+
+model Schedule {
+  id          String       @id @default(cuid())
+  title       String
+  description String?
+  startTime   DateTime
+  endTime     DateTime
+  dayOfWeek   String
+  userId      String
+  roomId      String
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  attendances Attendance[]
+  room        Room         @relation(fields: [roomId], references: [id])
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Ticket {
+  id               String          @id @default(cuid())
+  title            String
+  description      String
+  status           TicketStatus    @default(OPEN)
+  priority         TicketPriority  @default(MEDIUM)
+  ticketType       TicketType      @default(ISSUE_REPORT)
+  createdById      String
+  assignedToId     String?
+  moderatorId      String?
+  assetId          String?
+  roomId           String?
+  requestedAssetId String?
+  startTime        DateTime?
+  endTime          DateTime?
+  dayOfWeek        String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  resolvedAt       DateTime?
+  attachments      Attachment[]
+  asset            Asset?          @relation(fields: [assetId], references: [id])
+  requestedAsset   Asset?          @relation("RequestedAssets", fields: [requestedAssetId], references: [id])
+  room             Room?           @relation(fields: [roomId], references: [id])
+  comments         TicketComment[]
+}
+
+model Attachment {
+  id         String   @id @default(cuid())
+  fileName   String
+  fileUrl    String
+  fileType   String
+  fileSize   Int
+  ticketId   String
+  uploadedAt DateTime @default(now())
+  ticket     Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+}
+
+model TicketComment {
+  id        String   @id @default(cuid())
+  content   String
+  ticketId  String
+  authorId  String
+  isPrivate Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+}
+
+model Attendance {
+  id          String   @id @default(cuid())
+  firstName   String
+  lastName    String
+  email       String
+  section     String
+  yearLevel   String
+  subject     String
+  date        DateTime
+  description String?
+  systemUnit  Boolean
+  keyboard    Boolean
+  mouse       Boolean
+  internet    Boolean
+  ups         Boolean
+  scheduleId  String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  schedule    Schedule @relation(fields: [scheduleId], references: [id])
 }
 
 enum RoomType {
@@ -103,25 +247,6 @@ enum RoomType {
   LABORATORY
   STORAGE
   OTHER
-}
-
-model Asset {
-  id                 String               @id @default(cuid())
-  assetTag           String?              @unique // Optional tracking ID/tag
-  assetType          AssetType
-  systemUnit         String?              // For computers: model/serial number
-  ups                String?              // UPS model/serial number
-  monitor            String?              // Monitor model/serial number
-  status             AssetStatus          @default(WORKING)
-  remarks            String?
-  roomId             String
-  room               Room                 @relation(fields: [roomId], references: [id])
-  maintenanceHistory MaintenanceRecord[]
-  deploymentHistory  DeploymentRecord[]
-  tickets            Ticket[]
-  assetRequests      Ticket[]             @relation("RequestedAssets")
-  createdAt          DateTime             @default(now())
-  updatedAt          DateTime             @updatedAt
 }
 
 enum AssetType {
@@ -137,92 +262,6 @@ enum AssetStatus {
   NEEDS_REPAIR
   OUT_OF_SERVICE
   UNDER_MAINTENANCE
-}
-
-model StorageItem {
-  id          String    @id @default(cuid())
-  name        String
-  itemType    String    // Category like "CABLE", "SOFTWARE", "HARDWARE"
-  subType     String?   // For COMPUTER_PART, can be SYSTEM_UNIT, MONITOR, UPS
-  quantity    Int       @default(0)
-  unit        String?   // e.g., "meters", "pieces", "box"
-  remarks     String?
-  serialNumbers String[] // Array of serial numbers for the items
-  deploymentHistory DeploymentRecord[]
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-}
-
-model MaintenanceRecord {
-  id          String    @id @default(cuid())
-  assetId     String
-  asset       Asset     @relation(fields: [assetId], references: [id], onDelete: Cascade)
-  date        DateTime
-  description String
-  technician  String?
-  status      String    // e.g., "COMPLETED", "PENDING", "IN_PROGRESS"
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-}
-
-model DeploymentRecord {
-  id            String       @id @default(cuid())
-  assetId       String?
-  asset         Asset?       @relation(fields: [assetId], references: [id], onDelete: SetNull)
-  storageItemId String?
-  storageItem   StorageItem? @relation(fields: [storageItemId], references: [id], onDelete: SetNull)
-  quantity      Int          @default(1)
-  serialNumber  String?      // Serial number of the deployed item
-  fromRoomId    String?      // Could be a storage room or another room
-  toRoomId      String?      // Destination room
-  date          DateTime
-  deployedBy    String
-  remarks       String?
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
-}
-
-// New model for Schedule
-model Schedule {
-  id          String    @id @default(cuid())
-  title       String
-  description String?
-  startTime   DateTime
-  endTime     DateTime
-  dayOfWeek   String    // "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"
-  userId      String
-  roomId      String
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  room        Room      @relation(fields: [roomId], references: [id])
-}
-
-// Ticket Management System Models
-model Ticket {
-  id             String           @id @default(cuid())
-  title          String
-  description    String
-  status         TicketStatus     @default(OPEN)
-  priority       TicketPriority   @default(MEDIUM)
-  ticketType     TicketType       @default(ISSUE_REPORT)
-  createdById    String           // User who created the ticket
-  assignedToId   String?          // Technician who is assigned to the ticket
-  moderatorId    String?          // Moderator overseeing the ticket
-  assetId        String?          // Related asset if applicable
-  asset          Asset?           @relation(fields: [assetId], references: [id], onDelete: SetNull)
-  roomId         String?          // Room where the issue is located
-  room           Room?            @relation(fields: [roomId], references: [id], onDelete: SetNull)
-  requestedAssetId String?        // Asset requested (for ASSET_REQUEST type)
-  requestedAsset  Asset?          @relation("RequestedAssets", fields: [requestedAssetId], references: [id], onDelete: SetNull)
-  startTime      DateTime?        // For room booking requests
-  endTime        DateTime?        // For room booking requests
-  dayOfWeek      String?          // For recurring room bookings
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
-  resolvedAt     DateTime?        // When the ticket was resolved
-  attachments    Attachment[]
-  comments       TicketComment[]
 }
 
 enum TicketStatus {
@@ -243,26 +282,4 @@ enum TicketType {
   ISSUE_REPORT
   ROOM_REQUEST
   ASSET_REQUEST
-}
-
-model Attachment {
-  id        String   @id @default(cuid())
-  fileName  String
-  fileUrl   String
-  fileType  String
-  fileSize  Int
-  ticketId  String
-  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-  uploadedAt DateTime @default(now())
-}
-
-model TicketComment {
-  id        String   @id @default(cuid())
-  content   String
-  ticketId  String
-  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-  authorId  String   // User ID who wrote the comment
-  isPrivate Boolean  @default(false) // If true, only visible to moderators and technicians
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 }

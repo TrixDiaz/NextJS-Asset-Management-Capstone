@@ -1,69 +1,40 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
-import { NextRequest, NextResponse } from 'next/server';
 
-// Protect both dashboard and API routes
+// Create a matcher for the routes we want to protect
 const isProtectedRoute = createRouteMatcher([
   '/dashboard(.*)',
   '/api/tickets(.*)',
   '/api/users(.*)'
 ]);
 
-export default clerkMiddleware(async (auth, req) => {
-  try {
-    // Get the current path
-    const path = new URL(req.url).pathname;
+// Define public routes that don't require authentication
+const publicPaths = [
+  '/',
+  '/api/ping',
+  '/api/attendance(.*)', // Make all attendance endpoints public
+  '/api/attendance/repair', // Allow access to attendance repair endpoint
+  '/api/schedules(.*)', // Make schedules endpoints public for attendance form
+  '/dashboard/attendance', // Make attendance form page accessible without auth
+  '/attendance', // Standalone attendance page
+  '/sign-in',
+  '/sign-up',
+  '/api/webhooks(.*)'
+];
 
-    // Check if it's an API route
-    const isApiRoute = path.startsWith('/api/');
+const isPublicPath = createRouteMatcher(publicPaths);
 
-    // Special handling for dashboard routes - redirect to landing page if not authenticated
-    if (path.startsWith('/dashboard')) {
-      const { userId } = await auth();
+export default clerkMiddleware((auth, req) => {
+  // If it's a public path, allow access without authentication
+  if (isPublicPath(req)) {
+    return;
+  }
 
-      if (!userId) {
-        // Redirect to landing/home page instead of sign-in
-        const landingUrl = new URL('/', req.url);
-        return NextResponse.redirect(landingUrl);
-      }
-    }
-
-    // Protect routes
-    if (isProtectedRoute(req)) {
-      auth.protect();
-
-      // Log authentication state for debugging
-      console.log(`Protected route access: ${path}`);
-    }
-
-    return NextResponse.next();
-  } catch (error) {
-    // Log error details
-    console.error(`Middleware auth error for ${req.url}:`, error);
-
-    // For API routes, return a JSON error instead of redirecting
-    if (req.url.includes('/api/')) {
-      return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
-      );
-    }
-
-    // For dashboard routes, redirect to landing page
-    if (req.url.includes('/dashboard/')) {
-      const landingUrl = new URL('/', req.url);
-      return NextResponse.redirect(landingUrl);
-    }
-
-    // Otherwise, let Clerk handle it
-    throw error;
+  // For protected routes, require authentication
+  if (isProtectedRoute(req)) {
+    auth.protect();
   }
 });
 
 export const config = {
-  matcher: [
-    // Skip Next.js internals and all static files, unless found in search params
-    '/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
-    // Always run for API routes
-    '/(api|trpc)(.*)'
-  ]
+  matcher: ['/((?!.+\\.[\\w]+$|_next).*)', '/', '/(api|trpc)(.*)']
 };

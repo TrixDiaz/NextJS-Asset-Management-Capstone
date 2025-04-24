@@ -67,17 +67,28 @@ export async function GET(_req: NextRequest) {
         orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }]
       });
 
-      return NextResponse.json(schedules);
+      // Format response to match other API endpoints
+      return NextResponse.json({
+        success: true,
+        data: schedules
+      });
     } catch (dbError) {
       console.error('Database error fetching schedules:', dbError);
 
       // Return empty array instead of error for better client handling
-      return NextResponse.json([]);
+      return NextResponse.json({
+        success: false,
+        data: []
+      });
     }
   } catch (error) {
     console.error('Error fetching schedules:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch schedules', details: String(error) },
+      {
+        success: false,
+        error: 'Failed to fetch schedules',
+        details: String(error)
+      },
       { status: 500 }
     );
   }
