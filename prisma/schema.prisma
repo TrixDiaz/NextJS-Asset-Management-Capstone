@@ -14,7 +14,6 @@ model User {
   lastName         String?
   username         String?          @unique
   email            String?          @unique
-  emailVerified    DateTime?
   profileImageUrl  String?
   imageUrl         String?
   birthday         String?
@@ -29,6 +28,7 @@ model User {
   publicMetadata   Json?            @default("{}")
   privateMetadata  Json?            @default("{}")
   unsafeMetadata   Json?            @default("{}")
+  emailVerified    DateTime?
   schedules        Schedule[]
   permissions      UserPermission[]
 }
@@ -44,10 +44,10 @@ model Permission {
 }
 
 model UserPermission {
-  id           String     @id @default(cuid())
   userId       String
   permissionId String
   createdAt    DateTime   @default(now())
+  id           String     @id @default(cuid())
   updatedAt    DateTime   @updatedAt
   permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
   user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -117,13 +117,13 @@ model StorageItem {
   id                String             @id @default(cuid())
   name              String
   itemType          String
-  subType           String?
   quantity          Int                @default(0)
   unit              String?
   remarks           String?
-  serialNumbers     String[]
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
+  serialNumbers     String[]
+  subType           String?
   deploymentHistory DeploymentRecord[]
 }
 
@@ -144,7 +144,6 @@ model DeploymentRecord {
   assetId       String?
   storageItemId String?
   quantity      Int          @default(1)
-  serialNumber  String?
   fromRoomId    String?
   toRoomId      String?
   date          DateTime
@@ -152,6 +151,7 @@ model DeploymentRecord {
   remarks       String?
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
+  serialNumber  String?
   asset         Asset?       @relation(fields: [assetId], references: [id])
   storageItem   StorageItem? @relation(fields: [storageItemId], references: [id])
 }
@@ -178,19 +178,19 @@ model Ticket {
   description      String
   status           TicketStatus    @default(OPEN)
   priority         TicketPriority  @default(MEDIUM)
-  ticketType       TicketType      @default(ISSUE_REPORT)
   createdById      String
   assignedToId     String?
   moderatorId      String?
   assetId          String?
   roomId           String?
-  requestedAssetId String?
-  startTime        DateTime?
-  endTime          DateTime?
-  dayOfWeek        String?
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
   resolvedAt       DateTime?
+  dayOfWeek        String?
+  endTime          DateTime?
+  requestedAssetId String?
+  startTime        DateTime?
+  ticketType       TicketType      @default(ISSUE_REPORT)
   attachments      Attachment[]
   asset            Asset?          @relation(fields: [assetId], references: [id])
   requestedAsset   Asset?          @relation("RequestedAssets", fields: [requestedAssetId], references: [id])

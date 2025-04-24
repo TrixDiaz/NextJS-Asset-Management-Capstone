@@ -29,25 +29,25 @@ interface RouteProps {
 
 const routeList: RouteProps[] = [
   {
-    href: '#testimonials',
-    label: 'Testimonials'
+    href: '#benefits',
+    label: 'Benefits'
   },
   {
-    href: '#team',
-    label: 'Team'
-  },
-  {
-    href: '#contact',
-    label: 'Contact'
+    href: '#features',
+    label: 'Features'
   },
   {
     href: '#faq',
     label: 'FAQ'
+  },
+  {
+    href: '/auth/sign-in',
+    label: 'Login'
   }
 ];
 
 export const Navbar = () => {
-  const [isOpen, setIsOpen] = React.useState(false);
+  const [ isOpen, setIsOpen ] = React.useState(false);
   return (
     <div className='fixed top-0 right-0 left-0 z-50'>
       <header className='z-40 w-full'>
@@ -56,7 +56,7 @@ export const Navbar = () => {
             <div className='mr-2 rounded-md bg-orange-600 p-2'>
               <ChevronsDown className='h-5 w-5 text-white' />
             </div>
-            Shadcn
+            AssetMaster
           </Link>
 
           {/* Mobile Menu */}
@@ -80,7 +80,7 @@ export const Navbar = () => {
                         <div className='mr-2 rounded-md bg-orange-600 p-2'>
                           <ChevronsDown className='h-5 w-5 text-white' />
                         </div>
-                        Shadcn
+                        AssetMaster
                       </Link>
                     </SheetTitle>
                   </SheetHeader>
@@ -126,21 +126,21 @@ export const Navbar = () => {
                   <NavigationMenuContent className='bg-black text-white'>
                     <div className='grid w-[400px] gap-3 p-4'>
                       <div className='rounded-md p-3 hover:bg-gray-800'>
-                        <p className='font-medium'>Showcase Your Value</p>
+                        <p className='font-medium'>Asset Tracking</p>
                         <p className='text-sm text-gray-400'>
-                          Highlight how your product solves user problems.
+                          Track all your assets in real-time with detailed history and status updates.
                         </p>
                       </div>
                       <div className='rounded-md p-3 hover:bg-gray-800'>
-                        <p className='font-medium'>Build Trust</p>
+                        <p className='font-medium'>Maintenance Management</p>
                         <p className='text-sm text-gray-400'>
-                          Leverages social proof elements to establish trust.
+                          Schedule and track maintenance activities to extend asset lifecycles.
                         </p>
                       </div>
                       <div className='rounded-md p-3 hover:bg-gray-800'>
-                        <p className='font-medium'>Capture Leads</p>
+                        <p className='font-medium'>Resource Optimization</p>
                         <p className='text-sm text-gray-400'>
-                          Make your lead capture form visually appealing.
+                          Advanced analytics to identify underutilized assets and optimize resource allocation.
                         </p>
                       </div>
                     </div>
@@ -163,15 +163,6 @@ export const Navbar = () => {
 
           <div className='hidden items-center space-x-2 lg:flex'>
             <ModeToggle />
-            <Button asChild size='sm' variant='ghost' className='text-white'>
-              <Link
-                aria-label='View on GitHub'
-                href='https://github.com/nobruf/shadcn-landing-page.git'
-                target='_blank'
-              >
-                <Github className='h-5 w-5' />
-              </Link>
-            </Button>
           </div>
         </div>
       </header>

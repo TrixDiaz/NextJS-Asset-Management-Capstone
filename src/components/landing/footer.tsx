@@ -14,54 +14,60 @@ export const FooterSection = () => {
             <Link href='#' className='flex items-center font-bold'>
               <ChevronsDownIcon className='from-primary via-primary/70 to-primary border-secondary mr-2 h-9 w-9 rounded-lg border bg-gradient-to-tr' />
 
-              <h3 className='text-2xl'>Shadcn</h3>
+              <h3 className='text-2xl'>AssetMaster</h3>
             </Link>
           </div>
 
           <div className='flex flex-col gap-2'>
-            <h3 className='text-lg font-bold'>Contact</h3>
+            <h3 className='text-lg font-bold'>Resources</h3>
             <div>
               <Link href='#' className='opacity-60 hover:opacity-100'>
-                Github
+                Documentation
               </Link>
             </div>
 
             <div>
               <Link href='#' className='opacity-60 hover:opacity-100'>
-                Twitter
+                Knowledge Base
               </Link>
             </div>
 
             <div>
               <Link href='#' className='opacity-60 hover:opacity-100'>
-                Instagram
-              </Link>
-            </div>
-          </div>
-
-          <div className='flex flex-col gap-2'>
-            <h3 className='text-lg font-bold'>Platforms</h3>
-            <div>
-              <Link href='#' className='opacity-60 hover:opacity-100'>
-                iOS
-              </Link>
-            </div>
-
-            <div>
-              <Link href='#' className='opacity-60 hover:opacity-100'>
-                Android
-              </Link>
-            </div>
-
-            <div>
-              <Link href='#' className='opacity-60 hover:opacity-100'>
-                Web
+                Tutorials
               </Link>
             </div>
           </div>
 
           <div className='flex flex-col gap-2'>
-            <h3 className='text-lg font-bold'>Help</h3>
+            <h3 className='text-lg font-bold'>Product</h3>
+            <div>
+              <Link href='#' className='opacity-60 hover:opacity-100'>
+                Features
+              </Link>
+            </div>
+
+            <div>
+              <Link href='#' className='opacity-60 hover:opacity-100'>
+                Pricing
+              </Link>
+            </div>
+
+            <div>
+              <Link href='#' className='opacity-60 hover:opacity-100'>
+                Roadmap
+              </Link>
+            </div>
+          </div>
+
+          <div className='flex flex-col gap-2'>
+            <h3 className='text-lg font-bold'>Support</h3>
+            <div>
+              <Link href='#' className='opacity-60 hover:opacity-100'>
+                Help Center
+              </Link>
+            </div>
+
             <div>
               <Link href='#' className='opacity-60 hover:opacity-100'>
                 Contact Us
@@ -70,34 +76,28 @@ export const FooterSection = () => {
 
             <div>
               <Link href='#' className='opacity-60 hover:opacity-100'>
-                FAQ
-              </Link>
-            </div>
-
-            <div>
-              <Link href='#' className='opacity-60 hover:opacity-100'>
-                Feedback
+                Service Status
               </Link>
             </div>
           </div>
 
           <div className='flex flex-col gap-2'>
-            <h3 className='text-lg font-bold'>Socials</h3>
+            <h3 className='text-lg font-bold'>Company</h3>
             <div>
               <Link href='#' className='opacity-60 hover:opacity-100'>
-                Twitch
+                About Us
               </Link>
             </div>
 
             <div>
               <Link href='#' className='opacity-60 hover:opacity-100'>
-                Discord
+                Careers
               </Link>
             </div>
 
             <div>
               <Link href='#' className='opacity-60 hover:opacity-100'>
-                Dribbble
+                Legal
               </Link>
             </div>
           </div>
@@ -106,14 +106,7 @@ export const FooterSection = () => {
         <Separator className='my-6' />
         <section className=''>
           <h3 className=''>
-            &copy; 2024 Designed and developed by
-            <Link
-              target='_blank'
-              href='https://github.com/leoMirandaa'
-              className='text-primary border-primary ml-1 transition-all hover:border-b-2'
-            >
-              Leo Miranda
-            </Link>
+            &copy; 2024 AssetMaster. All rights reserved.
           </h3>
         </section>
       </div>

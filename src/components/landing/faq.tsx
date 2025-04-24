@@ -13,32 +13,32 @@ interface FAQProps {
 
 const FAQList: FAQProps[] = [
   {
-    question: 'Is this template free?',
-    answer: 'Yes. It is a free NextJS Shadcn template.',
+    question: 'What is AssetMaster?',
+    answer: 'AssetMaster is a comprehensive asset management platform designed to help organizations track, maintain, and optimize their physical and digital resources throughout their lifecycle.',
     value: 'item-1'
   },
   {
-    question: 'Duis aute irure dolor in reprehenderit in voluptate velit?',
+    question: 'How does AssetMaster help reduce operational costs?',
     answer:
-      'Lorem ipsum dolor sit amet, consectetur adipisicing elit. Sint labore quidem quam consectetur sapiente, iste rerum reiciendis animi nihil nostrum sit quo, modi quod.',
+      'AssetMaster helps reduce costs by providing visibility into asset utilization, preventing unnecessary purchases, optimizing maintenance schedules, and extending asset lifecycles through predictive analytics and proactive management.',
     value: 'item-2'
   },
   {
     question:
-      'Lorem ipsum dolor sit amet Consectetur natus dolor minus quibusdam?',
+      'Can AssetMaster integrate with our existing enterprise systems?',
     answer:
-      'Lorem ipsum dolor sit amet consectetur, adipisicing elit. Labore qui nostrum reiciendis veritatis.',
+      'Yes, AssetMaster offers robust API integrations with popular ERP, CMMS, and accounting systems to ensure seamless data flow across your organization.',
     value: 'item-3'
   },
   {
-    question: 'Excepteur sint occaecat cupidata non proident sunt?',
-    answer: 'Lorem ipsum dolor sit amet consectetur, adipisicing elit.',
+    question: 'Is AssetMaster suitable for small businesses?',
+    answer: 'Absolutely! AssetMaster offers scalable pricing plans suitable for organizations of all sizes, from small businesses to large enterprises.',
     value: 'item-4'
   },
   {
     question:
-      'Enim ad minim veniam, quis nostrud exercitation ullamco laboris?',
-    answer: 'consectetur adipisicing elit. Sint labore.',
+      'Does AssetMaster offer mobile access for field workers?',
+    answer: 'Yes, AssetMaster includes native mobile applications for iOS and Android, allowing field workers to access and update asset information on the go.',
     value: 'item-5'
   }
 ];
@@ -55,7 +55,7 @@ export default function FAQSection() {
         </h2>
 
         <h2 className='text-center text-3xl font-bold md:text-4xl'>
-          Common Questions
+          Frequently Asked Questions
         </h2>
       </div>
 

@@ -10,27 +10,27 @@ interface BenefitsProps {
 const benefitList: BenefitsProps[] = [
   {
     icon: 'Blocks',
-    title: 'Build Brand Trust',
+    title: 'Centralized Asset Management',
     description:
-      'Lorem ipsum dolor sit amet consectetur adipisicing elit. A odio velit cum aliquam. Natus consectetur dolores.'
+      'Keep track of all your assets in one place with detailed information on location, status, and maintenance history.'
   },
   {
     icon: 'LineChart',
-    title: 'More Leads',
+    title: 'Data-Driven Insights',
     description:
-      'Lorem ipsum dolor sit amet consectetur adipisicing elit. A odio velit cum aliquam, natus consectetur.'
+      'Leverage advanced analytics to optimize resource allocation, predict maintenance needs, and extend asset lifecycles.'
   },
   {
     icon: 'Wallet',
-    title: 'Higher Conversions',
+    title: 'Cost Reduction',
     description:
-      'Lorem ipsum dolor sit amet consectetur adipisicing elit. Natus consectetur. A odio velit cum aliquam'
+      'Identify underutilized assets, prevent unnecessary purchases, and optimize maintenance schedules to reduce operational costs.'
   },
   {
     icon: 'Sparkle',
-    title: 'Test Marketing Ideas',
+    title: 'Streamlined Workflows',
     description:
-      'Lorem ipsum dolor sit amet consectetur adipisicing elit. A odio velit cum aliquam. Natus consectetur dolores.'
+      'Automate asset-related processes from acquisition to disposal with customizable workflows and approval chains.'
   }
 ];
 
@@ -61,12 +61,10 @@ export default function BenefitsSection() {
           <h2 className='text-primary mb-2 text-lg tracking-wider'>Benefits</h2>
 
           <h2 className='mb-4 text-3xl font-bold md:text-4xl'>
-            Your Shortcut to Success
+            Optimize Your Asset Management
           </h2>
           <p className='text-muted-foreground mb-8 text-xl'>
-            Lorem ipsum dolor sit amet consectetur, adipisicing elit. Non
-            ducimus reprehenderit architecto rerum similique facere odit
-            deleniti necessitatibus quo quae.
+            Our comprehensive asset management platform provides the tools you need to track, maintain, and optimize your organization&apos;s valuable resources with unparalleled efficiency.
           </p>
         </div>
 
