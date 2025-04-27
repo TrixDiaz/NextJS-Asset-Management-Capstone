@@ -77,14 +77,14 @@ const daysOfWeek = [
 ];
 
 export default function SchedulesPage() {
-  const [schedules, setSchedules] = useState<Schedule[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [sortField, setSortField] = useState<SortField | null>(null);
-  const [sortDirection, setSortDirection] = useState<SortDirection>(null);
-  const [dayFilter, setDayFilter] = useState<string[]>([]);
-  const [pageIndex, setPageIndex] = useState(0);
-  const [pageSize, setPageSize] = useState(10);
+  const [ schedules, setSchedules ] = useState<Schedule[]>([]);
+  const [ isLoading, setIsLoading ] = useState(true);
+  const [ searchQuery, setSearchQuery ] = useState('');
+  const [ sortField, setSortField ] = useState<SortField | null>(null);
+  const [ sortDirection, setSortDirection ] = useState<SortDirection>(null);
+  const [ dayFilter, setDayFilter ] = useState<string[]>([]);
+  const [ pageIndex, setPageIndex ] = useState(0);
+  const [ pageSize, setPageSize ] = useState(10);
 
   // Define the fetchSchedules function first so it can be referenced elsewhere
   const fetchSchedules = async () => {
@@ -92,9 +92,36 @@ export default function SchedulesPage() {
       setIsLoading(true);
       const origin = window.location.origin;
       const response = await fetch(`${origin}/api/schedules`);
-      if (!response.ok) throw new Error('Failed to fetch schedules');
+
+      if (!response.ok) {
+        console.error('API response not OK:', response.status, response.statusText);
+        throw new Error(`Failed to fetch schedules: ${response.statusText}`);
+      }
+
       const data = await response.json();
-      setSchedules(data);
+      console.log('API response data:', data);
+
+      // Log detailed structure for debugging
+      if (data && data.success) {
+        console.log('API returned success property:', data.success);
+      }
+
+      if (data && data.data) {
+        console.log('API returned data property with length:', Array.isArray(data.data) ? data.data.length : 'not an array');
+      }
+
+      // The API returns data in a { success: true, data: [...] } format
+      if (data && data.success && Array.isArray(data.data)) {
+        console.log('Using data.data array with length:', data.data.length);
+        setSchedules(data.data);
+      } else if (Array.isArray(data)) {
+        console.log('Using raw data array with length:', data.length);
+        setSchedules(data);
+      } else {
+        console.error('Unexpected data structure:', data);
+        setSchedules([]);
+      }
+
       setIsLoading(false);
     } catch (error) {
       console.error('Error loading schedules:', error);
@@ -126,7 +153,12 @@ export default function SchedulesPage() {
   // Filter and sort schedules
   const filteredAndSortedSchedules = useMemo(() => {
     // First, filter the schedules
-    let result = [...schedules];
+    if (!Array.isArray(schedules)) {
+      console.error('schedules is not an array:', schedules);
+      return [];
+    }
+
+    let result = [ ...schedules ];
 
     // Apply day filter
     if (dayFilter.length > 0) {
@@ -201,15 +233,17 @@ export default function SchedulesPage() {
     }
 
     return result;
-  }, [schedules, searchQuery, sortField, sortDirection, dayFilter]);
+  }, [ schedules, searchQuery, sortField, sortDirection, dayFilter ]);
 
   // Calculate pagination
-  const pageCount = Math.ceil(filteredAndSortedSchedules.length / pageSize);
+  const pageCount = Math.max(1, Math.ceil(filteredAndSortedSchedules.length / pageSize));
   const paginatedSchedules = useMemo(() => {
+    if (!filteredAndSortedSchedules.length) return [];
+
     const start = pageIndex * pageSize;
     const end = start + pageSize;
     return filteredAndSortedSchedules.slice(start, end);
-  }, [filteredAndSortedSchedules, pageIndex, pageSize]);
+  }, [ filteredAndSortedSchedules, pageIndex, pageSize ]);
 
   // Toggle column sort
   const toggleSort = (field: SortField) => {
@@ -234,7 +268,7 @@ export default function SchedulesPage() {
 
   const toggleDayFilter = (day: string) => {
     setDayFilter((prev) =>
-      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]
+      prev.includes(day) ? prev.filter((d) => d !== day) : [ ...prev, day ]
     );
   };
 
@@ -410,8 +444,14 @@ export default function SchedulesPage() {
                       {schedule.dayOfWeek}
                     </TableCell>
                     <TableCell>
-                      {format(new Date(schedule.startTime), 'h:mm a')} -{' '}
-                      {format(new Date(schedule.endTime), 'h:mm a')}
+                      {(() => {
+                        try {
+                          return `${format(new Date(schedule.startTime), 'h:mm a')} - ${format(new Date(schedule.endTime), 'h:mm a')}`;
+                        } catch (error) {
+                          console.error('Error formatting time:', error, schedule.startTime, schedule.endTime);
+                          return 'Invalid time format';
+                        }
+                      })()}
                     </TableCell>
                     <TableCell>
                       {schedule.room.name || 'Room'} (
@@ -459,7 +499,7 @@ export default function SchedulesPage() {
                   setPageIndex(0);
                 }}
               >
-                {[5, 10, 20, 30, 40, 50].map((size) => (
+                {[ 5, 10, 20, 30, 40, 50 ].map((size) => (
                   <option key={size} value={size}>
                     {size}
                   </option>

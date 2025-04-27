@@ -1,8 +1,43 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { z } from 'zod';
-import { db, safeQuery, checkDbConnection } from '@/lib/db';
+import { prisma } from '@/lib/prisma';
 import { randomUUID } from 'crypto';
+
+// Function to check DB connection
+async function checkDbConnection() {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    return true;
+  } catch (error) {
+    console.error('Database connection error:', error);
+    return false;
+  }
+}
+
+// Function for safe queries with fallback
+async function safeQuery<T>(
+  queryFn: () => Promise<T>,
+  fallbackFn?: () => Promise<T>
+): Promise<T> {
+  try {
+    return await queryFn();
+  } catch (error) {
+    console.error('Error executing Prisma query:', error);
+
+    // Check if fallback function is provided
+    if (fallbackFn) {
+      try {
+        return await fallbackFn();
+      } catch (fallbackError) {
+        console.error('Error executing fallback query:', fallbackError);
+        throw fallbackError;
+      }
+    }
+
+    throw error;
+  }
+}
 
 // Schema validation for attendance submission
 const attendanceSchema = z.object({
@@ -68,7 +103,7 @@ export async function POST(req: NextRequest) {
 
     // Get the schedule to reference the room
     const schedule = await safeQuery(() =>
-      db.schedule.findUnique({
+      prisma.schedule.findUnique({
         where: { id: scheduleId },
         include: {
           room: true,
@@ -98,7 +133,7 @@ export async function POST(req: NextRequest) {
     // Use safe query execution
     await safeQuery(
       // Primary method using executeRaw
-      () => db.$executeRaw`
+      () => prisma.$executeRaw`
                 INSERT INTO "Attendance" (
                     "id", "firstName", "lastName", "email", "section", "yearLevel", "subject", 
                     "date", "description", "systemUnit", "keyboard", "mouse", "internet", "ups", 
@@ -113,7 +148,7 @@ export async function POST(req: NextRequest) {
             `,
       // Fallback method
       async () => {
-        // Try to use direct SQL through db.$queryRawUnsafe
+        // Try to use direct SQL through prisma.$queryRawUnsafe
         const query = `
                     INSERT INTO "Attendance" (
                         "id", "firstName", "lastName", "email", "section", "yearLevel", "subject", 
@@ -125,7 +160,7 @@ export async function POST(req: NextRequest) {
                     )
                 `;
 
-        return db.$queryRawUnsafe(
+        return prisma.$queryRawUnsafe(
           query,
           attendanceId,
           firstName,
@@ -184,7 +219,7 @@ export async function POST(req: NextRequest) {
       try {
         // Find or create user in database
         let dbUser = await safeQuery(() =>
-          db.user.findUnique({
+          prisma.user.findUnique({
             where: { clerkId: userId },
             select: { id: true }
           })
@@ -193,7 +228,7 @@ export async function POST(req: NextRequest) {
         // If user doesn't exist in database, create a basic record
         if (!dbUser) {
           dbUser = await safeQuery(() =>
-            db.user.create({
+            prisma.user.create({
               data: {
                 clerkId: userId,
                 role: 'member' // Default role
@@ -205,7 +240,7 @@ export async function POST(req: NextRequest) {
 
         // Create ticket
         await safeQuery(() =>
-          db.ticket.create({
+          prisma.ticket.create({
             data: {
               title,
               description: `
@@ -262,200 +297,98 @@ ${description || 'No additional notes provided.'}
 
 export async function GET(req: NextRequest) {
   try {
-    // Check database connection first
+    // Check if database is connected
     const isConnected = await checkDbConnection();
     if (!isConnected) {
       return NextResponse.json(
-        { error: 'Database connection error' },
+        { success: false, error: 'Database connection error', data: [] },
         { status: 503 }
       );
     }
 
-    // Don't require authentication for attendance records
-    // Just try to get auth info but continue either way
-    const { userId } = await auth();
-
     // Parse query parameters
     const { searchParams } = new URL(req.url);
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '10');
+    const page = parseInt(searchParams.get('page') || '1', 10);
+    const limit = parseInt(searchParams.get('limit') || '10', 10);
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
     const scheduleId = searchParams.get('scheduleId');
 
+    console.log('Query params:', { page, limit, startDate, endDate, scheduleId });
+
     // Calculate pagination
     const skip = (page - 1) * limit;
 
-    console.log('Fetching attendance records:', {
-      page,
-      limit,
-      startDate,
-      endDate,
-      scheduleId
-    });
+    // Build where condition
+    const where: any = {};
 
-    // Use safe query execution
-    return await safeQuery(
-      async () => {
-        // Use raw SQL to fetch the attendance records
-        let query = `
-                SELECT a.*, 
-                    s.title as "scheduleTitle", 
-                    s."userId" as "scheduleUserId",
-                    s."roomId" as "scheduleRoomId",
-                    r.number as "roomNumber",
-                    r.name as "roomName",
-                    u."firstName" as "userFirstName",
-                    u."lastName" as "userLastName"
-                FROM "Attendance" a
-                JOIN "Schedule" s ON a."scheduleId" = s.id
-                JOIN "Room" r ON s."roomId" = r.id
-                JOIN "User" u ON s."userId" = u.id
-                WHERE 1=1
-            `;
+    if (startDate && endDate) {
+      where.date = {
+        gte: new Date(startDate),
+        lte: new Date(endDate)
+      };
+    } else if (startDate) {
+      where.date = {
+        gte: new Date(startDate)
+      };
+    } else if (endDate) {
+      where.date = {
+        lte: new Date(endDate)
+      };
+    }
 
-        const queryParams: any[] = [];
-        let paramIndex = 1;
+    if (scheduleId) {
+      where.scheduleId = scheduleId;
+    }
 
-        if (scheduleId) {
-          query += ` AND a."scheduleId" = $${paramIndex}`;
-          queryParams.push(scheduleId);
-          paramIndex++;
-        }
-
-        if (startDate) {
-          query += ` AND a."date" >= $${paramIndex}`;
-          queryParams.push(new Date(startDate));
-          paramIndex++;
-        }
-
-        if (endDate) {
-          query += ` AND a."date" <= $${paramIndex}`;
-          queryParams.push(new Date(endDate));
-          paramIndex++;
-        }
-
-        // Add sorting
-        query += ` ORDER BY a."date" DESC`;
-
-        // Add pagination
-        query += ` LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
-        queryParams.push(limit, skip);
-
-        // Execute the query
-        const attendances = (await db.$queryRawUnsafe(
-          query,
-          ...queryParams
-        )) as any[];
-
-        // Count total records for pagination
-        let countQuery = `
-                SELECT COUNT(*) as total
-                FROM "Attendance" a
-                WHERE 1=1
-            `;
-
-        const countParams: any[] = [];
-        paramIndex = 1;
-
-        if (scheduleId) {
-          countQuery += ` AND a."scheduleId" = $${paramIndex}`;
-          countParams.push(scheduleId);
-          paramIndex++;
-        }
-
-        if (startDate) {
-          countQuery += ` AND a."date" >= $${paramIndex}`;
-          countParams.push(new Date(startDate));
-          paramIndex++;
-        }
-
-        if (endDate) {
-          countQuery += ` AND a."date" <= $${paramIndex}`;
-          countParams.push(new Date(endDate));
-          paramIndex++;
-        }
-
-        const countResult = (await db.$queryRawUnsafe(
-          countQuery,
-          ...countParams
-        )) as any[];
-        const total = parseInt(countResult[0].total);
-
-        console.log(
-          `Found ${attendances.length} attendance records out of ${total} total`
-        );
-
-        // Format the results to match the expected structure
-        const formattedAttendances = attendances.map((a: any) => ({
-          id: a.id,
-          firstName: a.firstName,
-          lastName: a.lastName,
-          email: a.email,
-          section: a.section,
-          yearLevel: a.yearLevel,
-          subject: a.subject,
-          date: a.date,
-          description: a.description,
-          systemUnit: a.systemUnit,
-          keyboard: a.keyboard,
-          mouse: a.mouse,
-          internet: a.internet,
-          ups: a.ups,
-          scheduleId: a.scheduleId,
-          createdAt: a.createdAt,
-          updatedAt: a.updatedAt,
-          schedule: {
-            id: a.scheduleId,
-            title: a.scheduleTitle,
-            room: {
-              id: a.scheduleRoomId,
-              number: a.roomNumber,
-              name: a.roomName
-            },
-            user: {
-              id: a.scheduleUserId,
-              firstName: a.userFirstName,
-              lastName: a.userLastName
-            }
-          }
-        }));
-
-        return NextResponse.json({
-          success: true,
-          data: formattedAttendances,
-          pagination: {
-            total,
-            page,
-            limit,
-            totalPages: Math.ceil(total / limit)
-          }
-        });
-      },
-      async () => {
-        // Fallback implementation if the primary query fails
-        return NextResponse.json(
-          {
-            success: false,
-            error: 'Database query failed',
-            data: [],
-            pagination: {
-              total: 0,
-              page,
-              limit,
-              totalPages: 0
-            }
-          },
-          { status: 500 }
-        );
-      }
+    // Count total records for pagination
+    const totalRecords = await safeQuery(() =>
+      prisma.attendance.count({ where })
     );
+
+    // Fetch attendance records with pagination
+    const attendanceRecords = await safeQuery(() =>
+      prisma.attendance.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: {
+          date: 'desc'
+        },
+        include: {
+          schedule: {
+            include: {
+              user: true,
+              room: true
+            }
+          }
+        }
+      })
+    );
+
+    console.log(`Found ${attendanceRecords.length} attendance records`);
+
+    // Calculate total pages
+    const totalPages = Math.ceil(totalRecords / limit);
+
+    return NextResponse.json({
+      success: true,
+      data: attendanceRecords,
+      pagination: {
+        page,
+        limit,
+        total: totalRecords,
+        totalPages
+      }
+    });
   } catch (error) {
     console.error('Error fetching attendance records:', error);
     return NextResponse.json(
       {
+        success: false,
         error: 'Failed to fetch attendance records',
-        details: error instanceof Error ? error.message : String(error)
+        details: error instanceof Error ? error.message : String(error),
+        data: []
       },
       { status: 500 }
     );

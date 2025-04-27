@@ -66,9 +66,9 @@ const attendanceFormSchema = z.object({
 type AttendanceFormValues = z.infer<typeof attendanceFormSchema>;
 
 export default function AttendancePage() {
-  const [isLoading, setIsLoading] = useState(false);
-  const [schedules, setSchedules] = useState([]);
-  const [showReport, setShowReport] = useState(false);
+  const [ isLoading, setIsLoading ] = useState(false);
+  const [ schedules, setSchedules ] = useState<any[]>([]);
+  const [ showReport, setShowReport ] = useState(false);
   const router = useRouter();
 
   const form = useForm<AttendanceFormValues>({
@@ -89,18 +89,85 @@ export default function AttendancePage() {
     }
   });
 
-  // Load schedules from API
+  // Load schedules from API with retry logic
   useEffect(() => {
-    const fetchSchedules = async () => {
+    const fetchSchedules = async (retryCount = 0) => {
       try {
-        const response = await fetch('/api/schedules');
-        const data = await response.json();
-        setSchedules(data);
+        setIsLoading(true);
+        const response = await fetch('/api/schedules', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache'
+          },
+          next: { revalidate: 0 } // Ensure fresh data
+        });
+
+        if (!response.ok) {
+          throw new Error(`API returned ${response.status}: ${response.statusText}`);
+        }
+
+        const result = await response.json();
+        console.log('Schedule API result:', result);
+
+        if (result.success && Array.isArray(result.data)) {
+          console.log(`Found ${result.data.length} schedules`);
+
+          // Sort schedules by day of week and start time
+          const sortedSchedules = [ ...result.data ].sort((a, b) => {
+            const dayOrder = {
+              'monday': 1,
+              'tuesday': 2,
+              'wednesday': 3,
+              'thursday': 4,
+              'friday': 5,
+              'saturday': 6,
+              'sunday': 7
+            };
+
+            // First sort by day
+            const dayDiff = (dayOrder[ a.dayOfWeek ] || 0) - (dayOrder[ b.dayOfWeek ] || 0);
+            if (dayDiff !== 0) return dayDiff;
+
+            // Then by time
+            return new Date(a.startTime).getTime() - new Date(b.startTime).getTime();
+          });
+
+          setSchedules(sortedSchedules);
+        } else if (Array.isArray(result)) {
+          console.log(`Found ${result.length} schedules (array format)`);
+          setSchedules(result);
+        } else {
+          console.error('Invalid response format:', result);
+
+          // Retry logic
+          if (retryCount < 2) {
+            console.log(`Retrying schedule fetch (attempt ${retryCount + 1})...`);
+            setTimeout(() => fetchSchedules(retryCount + 1), 1000);
+            return;
+          }
+
+          toast('Warning', {
+            description: 'Unexpected data format from server. Please contact support.'
+          });
+          setSchedules([]);
+        }
       } catch (error) {
         console.error('Error fetching schedules:', error);
+
+        // Retry logic for errors
+        if (retryCount < 2) {
+          console.log(`Retrying after error (attempt ${retryCount + 1})...`);
+          setTimeout(() => fetchSchedules(retryCount + 1), 1000);
+          return;
+        }
+
         toast('Error', {
-          description: 'Failed to load schedules. Please try again.'
+          description: 'Failed to load schedules. Please try again or contact support.'
         });
+        setSchedules([]);
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -176,8 +243,8 @@ export default function AttendancePage() {
           } else {
             throw new Error(
               responseData.details ||
-                responseData.error ||
-                'Failed to submit attendance'
+              responseData.error ||
+              'Failed to submit attendance'
             );
           }
         }
@@ -312,22 +379,33 @@ export default function AttendancePage() {
                         <Select
                           onValueChange={field.onChange}
                           defaultValue={field.value}
+                          disabled={isLoading}
                         >
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder='Select a schedule' />
+                              <SelectValue placeholder={isLoading ? "Loading schedules..." : "Select a schedule"} />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {schedules.map((schedule: any) => (
-                              <SelectItem key={schedule.id} value={schedule.id}>
-                                {schedule.title} - {schedule.user.firstName}{' '}
-                                {schedule.user.lastName} (
-                                {format(new Date(schedule.startTime), 'h:mm a')}{' '}
-                                - {format(new Date(schedule.endTime), 'h:mm a')}
-                                )
+                            {isLoading ? (
+                              <SelectItem value="loading" disabled>
+                                <div className="flex items-center">
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  Loading schedules...
+                                </div>
                               </SelectItem>
-                            ))}
+                            ) : schedules.length === 0 ? (
+                              <SelectItem value="no-schedules" disabled>No schedules available</SelectItem>
+                            ) : (
+                              schedules.map((schedule: any) => (
+                                <SelectItem key={schedule.id} value={schedule.id}>
+                                  {schedule.dayOfWeek.charAt(0).toUpperCase() + schedule.dayOfWeek.slice(1)}: {schedule.title} - {schedule.user?.firstName || 'Unknown'}{' '}
+                                  {schedule.user?.lastName || 'User'} ({schedule.room?.number || 'No Room'})
+                                  {schedule.startTime ? ` ${format(new Date(schedule.startTime), 'h:mm a')}` : ''}{' '}
+                                  - {schedule.endTime ? format(new Date(schedule.endTime), 'h:mm a') : ''}
+                                </SelectItem>
+                              ))
+                            )}
                           </SelectContent>
                         </Select>
                         <FormDescription>

@@ -27,21 +27,23 @@ const scheduleCreateSchema = z.object({
 // GET all schedules
 export async function GET(_req: NextRequest) {
   try {
-    // Check if prisma client is initialized
-    if (!prisma) {
-      throw new Error('Database connection not initialized');
+    // Verify database connection
+    try {
+      await prisma.$queryRaw`SELECT 1`;
+    } catch (connectionError) {
+      console.error('Database connection error:', connectionError);
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Database connection error',
+          data: []
+        },
+        { status: 503 }
+      );
     }
 
     try {
-      // Check if schedule table exists by checking db client
-      // @ts-ignore - We know this exists even if TypeScript doesn't
-      if (!prisma.schedule) {
-        console.error('Schedule model not found in Prisma client');
-        return NextResponse.json([]);
-      }
-
-      // Get schedules with related information
-      // @ts-ignore - We know this exists even if TypeScript doesn't
+      // Use Prisma directly with type safety
       const schedules = await prisma.schedule.findMany({
         include: {
           user: {
@@ -55,31 +57,36 @@ export async function GET(_req: NextRequest) {
             }
           },
           room: {
-            include: {
-              floor: {
-                include: {
-                  building: true
-                }
-              }
+            select: {
+              id: true,
+              number: true,
+              name: true
             }
           }
         },
-        orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }]
+        orderBy: [
+          { dayOfWeek: 'asc' },
+          { startTime: 'asc' }
+        ]
       });
 
-      // Format response to match other API endpoints
+      console.log(`Found ${schedules.length} schedules`);
+
       return NextResponse.json({
         success: true,
         data: schedules
       });
     } catch (dbError) {
       console.error('Database error fetching schedules:', dbError);
-
-      // Return empty array instead of error for better client handling
-      return NextResponse.json({
-        success: false,
-        data: []
-      });
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Database error',
+          details: dbError instanceof Error ? dbError.message : String(dbError),
+          data: []
+        },
+        { status: 500 }
+      );
     }
   } catch (error) {
     console.error('Error fetching schedules:', error);
@@ -87,7 +94,8 @@ export async function GET(_req: NextRequest) {
       {
         success: false,
         error: 'Failed to fetch schedules',
-        details: String(error)
+        details: error instanceof Error ? error.message : String(error),
+        data: []
       },
       { status: 500 }
     );

@@ -7,7 +7,8 @@ import {
   RefreshCw,
   Search,
   CheckCircle,
-  XCircle
+  XCircle,
+  Loader2
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -18,7 +19,8 @@ import {
   TableCell,
   TableHead,
   TableHeader,
-  TableRow
+  TableRow,
+  TableFooter
 } from '@/components/ui/table';
 import {
   Card,
@@ -57,6 +59,9 @@ import { toast } from 'sonner';
 interface Schedule {
   id: string;
   title: string;
+  dayOfWeek: string;
+  startTime: string;
+  endTime: string;
   room: {
     id: string;
     number: string;
@@ -64,8 +69,8 @@ interface Schedule {
   };
   user: {
     id: string;
-    firstName: string | null;
-    lastName: string | null;
+    firstName: string;
+    lastName: string;
   };
 }
 
@@ -85,22 +90,9 @@ interface Attendance {
   internet: boolean;
   ups: boolean;
   scheduleId: string;
+  schedule: Schedule;
   createdAt: string;
   updatedAt: string;
-  schedule: {
-    id: string;
-    title: string;
-    room: {
-      id: string;
-      number: string;
-      name: string | null;
-    };
-    user: {
-      id: string;
-      firstName: string | null;
-      lastName: string | null;
-    };
-  };
 }
 
 interface PaginationData {
@@ -111,106 +103,145 @@ interface PaginationData {
 }
 
 export default function AttendanceListPage() {
-  const [attendances, setAttendances] = useState<Attendance[]>([]);
-  const [schedules, setSchedules] = useState<Schedule[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isLoadingSchedules, setIsLoadingSchedules] = useState(false);
-  const [pagination, setPagination] = useState<PaginationData>({
+  const [ attendances, setAttendances ] = useState<Attendance[]>([]);
+  const [ schedules, setSchedules ] = useState<Schedule[]>([]);
+  const [ isLoading, setIsLoading ] = useState(true);
+  const [ isLoadingSchedules, setIsLoadingSchedules ] = useState(false);
+  const [ pagination, setPagination ] = useState<PaginationData>({
     total: 0,
     page: 1,
     limit: 10,
     totalPages: 0
   });
-  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
-  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
-  const [search, setSearch] = useState('');
-  const [selectedSchedule, setSelectedSchedule] = useState<string>('all');
+  const [ startDate, setStartDate ] = useState<Date | undefined>(undefined);
+  const [ endDate, setEndDate ] = useState<Date | undefined>(undefined);
+  const [ search, setSearch ] = useState('');
+  const [ selectedSchedule, setSelectedSchedule ] = useState<string>('all');
+  const [ error, setError ] = useState<string | null>(null);
 
-  // Fetch schedules
-  const fetchSchedules = async () => {
-    setIsLoadingSchedules(true);
-    try {
-      const response = await fetch('/api/schedules');
+  // Fetch schedules for filter dropdown
+  useEffect(() => {
+    const fetchSchedules = async () => {
+      try {
+        const response = await fetch('/api/schedules', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache'
+          },
+          next: { revalidate: 0 }
+        });
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch schedules');
+        if (!response.ok) {
+          throw new Error(`Error fetching schedules: ${response.statusText}`);
+        }
+
+        const result = await response.json();
+        if (result.success && Array.isArray(result.data)) {
+          // Sort schedules by day and time
+          const sortedSchedules = [ ...result.data ].sort((a, b) => {
+            const dayOrder: Record<string, number> = {
+              'monday': 1,
+              'tuesday': 2,
+              'wednesday': 3,
+              'thursday': 4,
+              'friday': 5,
+              'saturday': 6,
+              'sunday': 7
+            };
+
+            // First sort by day
+            const dayDiff = (dayOrder[ a.dayOfWeek as string ] || 0) - (dayOrder[ b.dayOfWeek as string ] || 0);
+            if (dayDiff !== 0) return dayDiff;
+
+            // Then by time
+            return new Date(a.startTime).getTime() - new Date(b.startTime).getTime();
+          });
+
+          setSchedules(sortedSchedules);
+        } else {
+          setSchedules([]);
+        }
+      } catch (error) {
+        console.error('Error fetching schedules:', error);
+        setSchedules([]);
       }
+    };
 
-      const data = await response.json();
-      setSchedules(data.data || []);
-    } catch (error) {
-      console.error('Error fetching schedules:', error);
-      toast('Error', {
-        description: 'Failed to load schedules. Please try again.'
-      });
-    } finally {
-      setIsLoadingSchedules(false);
-    }
-  };
+    fetchSchedules();
+  }, []);
 
   // Fetch attendances
   const fetchAttendances = async (page = 1) => {
-    setIsLoading(true);
     try {
-      // Build query parameters
+      setIsLoading(true);
+      setError(null);
+
       const params = new URLSearchParams();
-      params.set('page', page.toString());
-      params.set('limit', pagination.limit.toString());
+      params.append('page', page.toString());
+      params.append('limit', pagination.limit.toString());
+
+      if (selectedSchedule && selectedSchedule !== 'all') {
+        params.set('scheduleId', selectedSchedule);
+      }
 
       if (startDate) {
         params.set('startDate', startDate.toISOString());
       }
 
       if (endDate) {
-        params.set('endDate', endDate.toISOString());
-      }
-
-      if (selectedSchedule && selectedSchedule !== 'all') {
-        params.set('scheduleId', selectedSchedule);
+        // Add one day to make it inclusive
+        const endDateWithOffset = new Date(endDate);
+        endDateWithOffset.setDate(endDateWithOffset.getDate() + 1);
+        params.set('endDate', endDateWithOffset.toISOString());
       }
 
       console.log(`Fetching attendances with params: ${params.toString()}`);
-      const response = await fetch(`/api/attendance?${params.toString()}`);
+      const response = await fetch(`/api/attendance?${params.toString()}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache'
+        },
+        next: { revalidate: 0 }
+      });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        console.error('Server response:', response.status, errorData);
         throw new Error(
-          errorData.error ||
-            `Failed to fetch attendance records: ${response.statusText}`
+          `Failed to fetch attendance records: ${response.statusText}`
         );
       }
 
       const data = await response.json();
       console.log('Attendance data received:', data);
 
-      if (!data.data) {
-        console.error('Invalid response format', data);
-        throw new Error('Invalid response format from server');
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to fetch attendance records');
       }
 
+      setPagination({
+        page: data.pagination.page,
+        limit: data.pagination.limit,
+        total: data.pagination.total,
+        totalPages: data.pagination.totalPages
+      });
+
       setAttendances(data.data);
-      setPagination(data.pagination);
     } catch (error) {
       console.error('Error fetching attendance:', error);
-      toast('Error', {
-        description:
-          error instanceof Error
-            ? error.message
-            : 'Failed to load attendance records. Please try again.'
-      });
+      setError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to load attendance records. Please try again.'
+      );
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchSchedules();
-  }, []);
-
-  useEffect(() => {
     fetchAttendances(1);
-  }, [startDate, endDate, selectedSchedule]);
+  }, [ startDate, endDate, selectedSchedule ]);
 
   // Filter attendance by search term
   const filteredAttendances = attendances.filter((attendance) => {
@@ -359,12 +390,24 @@ export default function AttendanceListPage() {
           </CardHeader>
           <CardContent>
             {isLoading ? (
-              <div className='flex items-center justify-center py-8'>
-                <RefreshCw className='h-6 w-6 animate-spin' />
+              <div className='flex items-center justify-center py-6'>
+                <Loader2 className='mr-2 h-5 w-5 animate-spin' />
                 <span className='ml-2'>Loading attendance records...</span>
               </div>
+            ) : error ? (
+              <div className='flex flex-col items-center justify-center py-6'>
+                <div className='text-destructive'>Error: {error}</div>
+                <Button
+                  variant='outline'
+                  size='sm'
+                  className='mt-2'
+                  onClick={() => fetchAttendances(1)}
+                >
+                  Retry
+                </Button>
+              </div>
             ) : filteredAttendances.length === 0 ? (
-              <div className='text-muted-foreground py-8 text-center'>
+              <div className='flex items-center justify-center py-6 text-gray-500'>
                 No attendance records found.
               </div>
             ) : (
@@ -497,82 +540,44 @@ export default function AttendanceListPage() {
                       </TableRow>
                     ))}
                   </TableBody>
+                  <TableFooter>
+                    <TableRow>
+                      <TableCell colSpan={7}>
+                        <div className='flex items-center justify-between'>
+                          <div className='text-sm text-muted-foreground'>
+                            Showing {filteredAttendances.length} of {pagination.total} records
+                          </div>
+                          <div className='flex items-center space-x-2'>
+                            <Button
+                              variant='outline'
+                              size='sm'
+                              onClick={() => fetchAttendances(pagination.page - 1)}
+                              disabled={pagination.page <= 1 || isLoading}
+                            >
+                              Previous
+                            </Button>
+                            <span className='text-sm'>
+                              Page {pagination.page} of {pagination.totalPages}
+                            </span>
+                            <Button
+                              variant='outline'
+                              size='sm'
+                              onClick={() => fetchAttendances(pagination.page + 1)}
+                              disabled={
+                                pagination.page >= pagination.totalPages || isLoading
+                              }
+                            >
+                              Next
+                            </Button>
+                          </div>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  </TableFooter>
                 </Table>
               </div>
             )}
           </CardContent>
-          <CardFooter>
-            <div className='w-full'>
-              <Pagination>
-                <PaginationContent>
-                  <PaginationItem>
-                    <PaginationPrevious
-                      onClick={() =>
-                        handlePageChange(Math.max(1, pagination.page - 1))
-                      }
-                      className={
-                        pagination.page <= 1
-                          ? 'pointer-events-none opacity-50'
-                          : 'cursor-pointer'
-                      }
-                    />
-                  </PaginationItem>
-
-                  {[...Array(pagination.totalPages)].map((_, i) => {
-                    const pageNumber = i + 1;
-
-                    // Show first page, current page, last page, and one page before and after current page
-                    if (
-                      pageNumber === 1 ||
-                      pageNumber === pagination.totalPages ||
-                      (pageNumber >= pagination.page - 1 &&
-                        pageNumber <= pagination.page + 1)
-                    ) {
-                      return (
-                        <PaginationItem key={pageNumber}>
-                          <PaginationLink
-                            isActive={pageNumber === pagination.page}
-                            onClick={() => handlePageChange(pageNumber)}
-                          >
-                            {pageNumber}
-                          </PaginationLink>
-                        </PaginationItem>
-                      );
-                    }
-
-                    // Show ellipsis for gaps
-                    if (
-                      pageNumber === 2 ||
-                      pageNumber === pagination.totalPages - 1
-                    ) {
-                      return (
-                        <PaginationItem key={pageNumber}>
-                          <PaginationEllipsis />
-                        </PaginationItem>
-                      );
-                    }
-
-                    return null;
-                  })}
-
-                  <PaginationItem>
-                    <PaginationNext
-                      onClick={() =>
-                        handlePageChange(
-                          Math.min(pagination.totalPages, pagination.page + 1)
-                        )
-                      }
-                      className={
-                        pagination.page >= pagination.totalPages
-                          ? 'pointer-events-none opacity-50'
-                          : 'cursor-pointer'
-                      }
-                    />
-                  </PaginationItem>
-                </PaginationContent>
-              </Pagination>
-            </div>
-          </CardFooter>
         </Card>
       </div>
     </div>
