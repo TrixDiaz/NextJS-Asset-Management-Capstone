@@ -7,27 +7,27 @@ export const navItems: NavItem[] = [
     url: '/dashboard/overview',
     icon: 'dashboard',
     isActive: false,
-    shortcut: ['d', 'd'],
+    shortcut: [ 'd', 'd' ],
     items: [] // Empty array as there are no child items for Dashboard
   },
   {
     title: 'Inventory',
     url: '#',
     icon: 'laptop',
-    shortcut: ['i', 'i'],
+    shortcut: [ 'i', 'i' ],
     isActive: false,
     items: [
       {
         title: 'Buildings & Rooms',
         url: '/dashboard/inventory',
         icon: 'settings',
-        shortcut: ['i', 'b']
+        shortcut: [ 'i', 'b' ]
       },
       {
         title: 'Storage',
         url: '/dashboard/inventory/storage',
         icon: 'product',
-        shortcut: ['i', 's']
+        shortcut: [ 'i', 's' ]
       }
     ]
   },
@@ -35,36 +35,22 @@ export const navItems: NavItem[] = [
     title: 'Tickets',
     url: '/dashboard/tickets',
     icon: 'ticket',
-    shortcut: ['t', 't'],
+    shortcut: [ 't', 't' ],
     isActive: false,
     items: [] // No child items
   },
   {
     title: 'Attendance',
-    url: '#',
+    url: '/dashboard/attendance-list',
     icon: 'check',
-    shortcut: ['a', 'a'],
+    shortcut: [ 'a', 'l' ],
     isActive: false,
-    items: [
-      {
-        title: 'Add Attendance',
-        url: '/dashboard/attendance',
-        icon: 'add',
-        shortcut: ['a', 'a']
-      },
-      {
-        title: 'View Attendance',
-        url: '/dashboard/attendance-list',
-        icon: 'activity',
-        shortcut: ['a', 'l']
-      }
-    ]
   },
   {
     title: 'Reports',
     url: '/dashboard/reports',
     icon: 'activity',
-    shortcut: ['r', 'r'],
+    shortcut: [ 'r', 'r' ],
     isActive: false,
     items: [] // No child items
   },
@@ -72,7 +58,7 @@ export const navItems: NavItem[] = [
     title: 'Users',
     url: '/dashboard/users',
     icon: 'user',
-    shortcut: ['u', 'u'],
+    shortcut: [ 'u', 'u' ],
     isActive: false,
     items: [] // No child items
   },
@@ -80,7 +66,7 @@ export const navItems: NavItem[] = [
     title: 'Schedules',
     url: '/dashboard/schedules',
     icon: 'calendar',
-    shortcut: ['s', 's'],
+    shortcut: [ 's', 's' ],
     isActive: false,
     items: [] // No child items
   },
@@ -88,7 +74,7 @@ export const navItems: NavItem[] = [
     title: 'Logs',
     url: '/dashboard/logs',
     icon: 'activity',
-    shortcut: ['l', 'l'],
+    shortcut: [ 'l', 'l' ],
     isActive: false,
     items: [] // No child items
   },
@@ -103,7 +89,7 @@ export const navItems: NavItem[] = [
         title: 'Profile',
         url: '/dashboard/profile',
         icon: 'userPen',
-        shortcut: ['m', 'm']
+        shortcut: [ 'm', 'm' ]
       }
     ]
   },
@@ -111,7 +97,7 @@ export const navItems: NavItem[] = [
     title: 'Kanban',
     url: '/dashboard/kanban',
     icon: 'kanban',
-    shortcut: ['k', 'k'],
+    shortcut: [ 'k', 'k' ],
     isActive: false,
     items: [] // No child items
   }

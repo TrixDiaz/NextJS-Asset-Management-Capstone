@@ -680,37 +680,6 @@ export default function AttendancePage() {
             </form>
           </Form>
         )}
-
-        {/* Hidden admin button for database repair */}
-        <div className='mt-8 text-center'>
-          <Button
-            variant='outline'
-            size='sm'
-            className='text-xs opacity-30 hover:opacity-100'
-            onClick={() => {
-              fetch('/api/attendance/repair')
-                .then((res) => res.json())
-                .then((data) => {
-                  if (data.success) {
-                    toast.success('Database repaired successfully', {
-                      description: data.message
-                    });
-                  } else {
-                    toast.error('Database repair failed', {
-                      description: data.error
-                    });
-                  }
-                })
-                .catch((err) => {
-                  toast.error('Database repair failed', {
-                    description: err.message
-                  });
-                });
-            }}
-          >
-            Repair Database
-          </Button>
-        </div>
       </div>
     </div>
   );

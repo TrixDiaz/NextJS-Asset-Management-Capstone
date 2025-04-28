@@ -28,7 +28,6 @@ import {
   SidebarMenuSubItem,
   SidebarRail
 } from '@/components/ui/sidebar';
-import { UserAvatarProfile } from '@/components/user-avatar-profile';
 import { navItems } from '@/constants/data';
 import { useMediaQuery } from '@/hooks/use-media-query';
 import { useUser } from '@clerk/nextjs';
@@ -45,6 +44,12 @@ import { usePathname, useRouter } from 'next/navigation';
 import * as React from 'react';
 import { Icons } from '../icons';
 import { OrgSwitcher } from '../org-switcher';
+import dynamic from 'next/dynamic';
+// Dynamically import UserAvatarProfile without SSR to avoid hydration mismatch
+const UserAvatarProfile = dynamic(
+  () => import('@/components/user-avatar-profile').then((mod) => mod.UserAvatarProfile),
+  { ssr: false }
+);
 export const company = {
   name: 'Acme Inc',
   logo: IconPhotoUp,
@@ -58,6 +63,11 @@ const tenants = [
 ];
 
 export default function AppSidebar() {
+  // Add mount guard to ensure SSR and client initial render match
+  const [ mounted, setMounted ] = React.useState(false);
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
   const pathname = usePathname();
   const { isOpen } = useMediaQuery();
   const { user } = useUser();
@@ -66,11 +76,11 @@ export default function AppSidebar() {
     // Tenant switching functionality would be implemented here
   };
 
-  const activeTenant = tenants[0];
+  const activeTenant = tenants[ 0 ];
 
   React.useEffect(() => {
     // Side effects based on sidebar state changes
-  }, [isOpen]);
+  }, [ isOpen ]);
 
   return (
     <Sidebar collapsible='icon'>
@@ -86,7 +96,7 @@ export default function AppSidebar() {
           <SidebarGroupLabel>Overview</SidebarGroupLabel>
           <SidebarMenu>
             {navItems.map((item) => {
-              const Icon = item.icon ? Icons[item.icon] : Icons.logo;
+              const Icon = item.icon ? Icons[ item.icon ] : Icons.logo;
               return item?.items && item?.items?.length > 0 ? (
                 <Collapsible
                   key={item.title}
@@ -150,7 +160,7 @@ export default function AppSidebar() {
                   size='lg'
                   className='data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground'
                 >
-                  {user && (
+                  {mounted && user && (
                     <UserAvatarProfile
                       className='h-8 w-8 rounded-lg'
                       showInfo
@@ -168,7 +178,7 @@ export default function AppSidebar() {
               >
                 <DropdownMenuLabel className='p-0 font-normal'>
                   <div className='px-1 py-1.5'>
-                    {user && (
+                    {mounted && user && (
                       <UserAvatarProfile
                         className='h-8 w-8 rounded-lg'
                         showInfo
